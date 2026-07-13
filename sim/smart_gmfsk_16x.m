@@ -4,14 +4,14 @@ clc;clear;close all;
 clearvars -global;
 addpath('.\sub_function_sgmfsk\');
 filename_res = 'mfsk_ber_16x.txt';
-global FILT Samp_IDET Mfsk ref_metric; % global filter object array
+global FLT Samp_IDET Mfsk ref_metric; % global filter object array
 global DEBUG Demod_method last_pm;
 global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
 %% DEBUG enable
 DEBUG = 0;
 fig_num = 1;
 filter_type = 0;
-NOISE_EN = 1;
+NOISE_EN = 0;%1;
 CORDIC_EN = 0;
 %% 系统参数
 Mfsk = 4;
@@ -36,7 +36,7 @@ F_dev = h/Tsym;              % 最大频偏(Hz)
 % dev = 250e3;
 % F_dev = dev;
 Nsym_total = 200*1000; % 发射符号数
-Nsym_segment = 2000;
+Nsym_segment = 1000;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 13.6*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
@@ -60,9 +60,9 @@ for idx_method = 3:(N_method-1)
     [filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
     ref_metric = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
     for idx_EbNo = 1:EbNo_len
-        reset_filter_objs(FILT);
+        reset_filter_objs(FLT);
         error_pos = 0; tsss = tic;
-        [N_32M_start,N_4K_start,last_rx_phase,last_tx_phase,last_iq,Samp_IDET,freq_off] = deal();
+        [N_32M_start,N_4K_start,last_rx_phase,last_tx_phase,last_iq,Samp_IDET,freq_off] = deal(0);
         last_tx_iq = zeros(1,Nsym_segment*sps_rx); last_pm = inf;
         last_rx_iq = zeros(Nsym_segment*sps_rx,1);
         tx_snr = EbNo_dB(idx_EbNo);
@@ -78,31 +78,31 @@ for idx_method = 3:(N_method-1)
                 [~,tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'syn',sps,fs,fs_tx,F_dev,Flo,fig_num);
                 %%---- AWGN Channelization on air ------
                 rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR,fs,fs_rx,NOISE_EN);
-                [rx_sig_bb,rx_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
+                [rx_sig_bb,rx_bb_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
                 [rx_sig,rx_len] = sgmfsk_decimation(rx_sig_bb,fs,fs_tx,filter_type);
                 [rx_cmix_out,time_rx] = rx_cmix(rx_sig,rx_len,0,fs_rx,CORDIC_EN);
-                curr_rx_iq = FILT.chFilter(double(rx_cmix_out));
+                curr_rx_iq = FLT.chFilter(double(rx_cmix_out));
                 demod_in = circshift(curr_rx_iq,-filt_dly);
                 [rx_bits,rx_bits_len,~] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'syn');
-                break;
+                breakb=1;
             end
             if idx_symb<N_symb_loop && idx_symb>0
                 %% Gfsk generate()
-                [~,tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num);
+                [tx_bits(idx_symb,:),tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num);
                 %%---- AWGN Channelization on air ------
                 rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR,fs,fs_rx,NOISE_EN);
-                [rx_sig_bb,rx_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
+                [rx_sig_bb,rx_bb_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
                 [rx_sig,rx_len] = sgmfsk_decimation(rx_sig_bb,fs,fs_tx,filter_type);
-                [rx_sig,rx_len,~,tx_cmix_out,time_rx] = rx_cmix(rx_sig,rx_len,0,fs_rx,CORDIC_EN);
                 %% multi_channel_recv()
                 %[rssI,snr] = rssi_ant_estimation(rx_sig,fs_rx);
                 %freq_off = frequency_estimation(rx_sig,fs_rx);
-                curr_rx_iq = FILT.chFilter(double(rx_cmix_out));
+                [rx_cmix_out,time_rx] = rx_cmix(rx_sig,rx_len,0,fs_rx,CORDIC_EN);
+                curr_rx_iq = FLT.chFilter(double(rx_cmix_out));
             end %idx_symb<N_symb_loop
             if idx_symb>1
                 demod_in = [last_rx_iq(filt_dly+1:end); curr_rx_iq(1:filt_dly)];
-                %[rx_bits,rx_bits_len] = gfsk_demodulator(demod_in,fs_rx,sps_rx,F_dev,freq_off);
-                [rx_bits,rx_bits_len,rx_bits_len] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
+                %[rx_bits,rx_bits_len] = gfsk_demodulator(demod_in,sps_rx,freq_off);
+                [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
                 % BER calculation
                 Nst = (1+0+(idx_symb==2)*ceil(7*filt_dly/sps_rx))*Mlog2-1;%40
                 Ncmp = (Nsym_segment -20 - (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx))*Mlog2;%960;
@@ -114,13 +114,13 @@ for idx_method = 3:(N_method-1)
                 error_count(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) + err_cnt_mlse;
                 bits_count(idx_method+1,idx_EbNo) = bits_count(idx_method+1,idx_EbNo) + bit_cnt_mlse;
                 BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+1,idx_EbNo) + eps);
-            end
+            end %idx_symb>1
         
             last_rx_iq = curr_rx_iq;
             tdura = toc(tatart);
             %fprintf('idx:EbNo,symb. = %d:%d, EbNo = %3.1f, BER = %6.5e, proc time = %3.1f\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),tdura);
             fprintf('idx:EbNo,symb. = %d:%d, EbNo = %3.1f, BER0 = %6.5e, BER1 = %6.5e\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),BER_est(idx_method+1,idx_EbNo));
-            fprintf('error pos : %d\n',error_pos);
+            %fprintf('error pos : %d\n',error_pos);
         end
         BER_tot = ber_result_save(filename_res,bits_count,error_count,EbNo_dB,tsss);
     end
@@ -294,26 +294,26 @@ function [err_count,bit_count,error_status] = error_stat(tx_bits,rx_bits)
     bit_count = length(rx_bits);
     err_count = length(find(tx_bits ~= rx_bits));
     error_status = [];
-    if err_count>0
-        tx_symbol = tx_bits(1:2:end)*2 + tx_bits(2:2:end)*1i;
-        rx_symbol = rx_bits(1:2:end)*2 + rx_bits(2:2:end)*1i;
-        error_pos = find(tx_symbol ~= rx_symbol);
-        st_pos = [];
-        for idx = 1:length(error_pos)
-            if error_pos(idx)>1
-                st_pos = [st_pos error_pos(idx)-1,error_pos(idx),error_pos(idx)+1];
-            else
-                st_pos = [st_pos error_pos(idx),error_pos(idx)+1];
-            end
-        end
-        error_status = zeros(3,length(st_pos));
-        error_status(1,:) = st_pos;
-        error_status(2,:) = tx_symbol(st_pos);
-        error_status(3,:) = rx_symbol(st_pos);
-        fprintf('error_pos = ');
-        for idx=1:length(error_pos)
-            fprintf('%d,',error_pos(idx));
-        end
-        fprintf('\n');
-    end
+    % if err_count>0
+    %     tx_symbol = tx_bits(1:2:end)*2 + tx_bits(2:2:end)*1;
+    %     rx_symbol = rx_bits(1:2:end)*2 + rx_bits(2:2:end)*1;
+    %     error_pos = find(tx_symbol ~= rx_symbol);
+    %     st_pos = [];
+    %     %for idx = 1:length(error_pos)
+    %     %    if error_pos(idx)>1
+    %     %        st_pos = [st_pos error_pos(idx)-1,error_pos(idx),error_pos(idx)+1];
+    %     %    else
+    %     %        st_pos = [st_pos error_pos(idx),error_pos(idx)+1];
+    %     %    end
+    %     %end
+    %     error_status = zeros(3,length(st_pos));
+    %     error_status(1,:) = st_pos;
+    %     error_status(2,:) = tx_symbol(st_pos);
+    %     error_status(3,:) = rx_symbol(st_pos);
+    %     fprintf('error_pos = ');
+    %     for idx=1:length(error_pos)
+    %         fprintf('%d,',error_pos(idx));
+    %     end
+    %     fprintf('\n');
+    % end
 end

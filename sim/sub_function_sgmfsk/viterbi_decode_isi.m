@@ -15,8 +15,8 @@ function det_symb = viterbi_decode_isi(obs_matrix)
     ref_normed = zeros(size(ref_metric));
     for p = 1:M_v
         for c = 1:M_v
-            if ref_norms(p, c) > 1e - 6
-                ref_normed(p, c, :) = ref_metric(p, c, :) / ref_norms(p, c);
+            if ref_norms(p,c) > 1e-6
+                ref_normed(p,c,:) = ref_metric(p,c,:)/ref_norms(p,c);
             end
         end
     end
@@ -27,20 +27,20 @@ function det_symb = viterbi_decode_isi(obs_matrix)
     %% ====
     %% Vectorized precomputation: normalized observation vectors
     %% ====
-    obs_norms = vecnorm(obs_matrix, 2, 1); % 1 x T
-    obs_normed = obs_matrix ./ obs_norms; % broadcast normalization
-    obs_normed(:, obs_norms < 1e - 6) = 0; % handle zero - norm vectors
+    obs_norms = vecnorm(obs_matrix, 2, 1);  % 1 x T
+    obs_normed = obs_matrix ./ obs_norms;   % broadcast normalization
+    obs_normed(:, obs_norms < 1e-6) = 0;    % handle zero - norm vectors
 
     %% ====
     % t == 1: initialize (prev = 0, i.e., prev_g = 0, prev_idx = 1)
     %% ====
     if isinf(last_pm)
-        pathMetric(:, 1) = (obs_normed(:, 1)' * ref_all(:, 1:M_v:M_v*M_v))';
+        pathMetric(:, 1) = (obs_normed(:, 1)' * ref_all(:, 1:M_v:M_v*M_v)).';
     else
         branch_all = reshape(obs_normed(:, 1)' * ref_all, M_v, M_v);
         val = last_pm + branch_all;
-        pm_t = max(val, [], 1); % 1 x M_v
-        pathMetric(:, 1) = pm_t'; % M_v x 1
+        pm_t = max(val, [], 1);             % 1 x M_v
+        pathMetric(:, 1) = pm_t.';          % M_v x 1
         pathMetric(:, 1) = pathMetric(:, 1) - max(pathMetric(:, 1)); % prevent overflow
     end
 
@@ -58,9 +58,9 @@ function det_symb = viterbi_decode_isi(obs_matrix)
         val = pathMetric(:, t - 1) + branch_all;
 
         % max over rows (prev) for each column (curr)
-        [pm_t, back_t] = max(val, [], 1); % 1 x M_v
-        pathMetric(:, t) = pm_t'; % M_v x 1
-        back(:, t) = back_t'; % M_v x 1
+        [pm_t, back_t] = max(val, [], 1);   % 1 x M_v
+        pathMetric(:, t) = pm_t.';          % M_v x 1
+        back(:, t) = back_t.';              % M_v x 1
         pathMetric(:, t) = pathMetric(:, t) - max(pathMetric(:, t)); % prevent overflow
     end
     last_pm = pathMetric(:, t); % Store last pm of current Nsegment
@@ -70,8 +70,8 @@ function det_symb = viterbi_decode_isi(obs_matrix)
     %% ====
     det_symb = zeros(T, 1);
     [~, det_symb(end)] = max(pathMetric(:, end));
-    for t = T - 1:-1:1
-        det_symb(t) = back(det_symb(t + 1), t + 1);
+    for t = T-1:-1:1
+        det_symb(t) = back(det_symb(t+1), t+1);
     end
     det_symb = det_symb - 1; % 0 - based Gray
 end

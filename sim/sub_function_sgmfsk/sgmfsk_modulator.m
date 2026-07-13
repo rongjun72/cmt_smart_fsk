@@ -80,7 +80,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     if(DEBUG)
         figure;
         time_16k = 1:Nsym*sps;((1:Nsym*sps)-1)/fs_tx;
-        phi_tx = 2*pi*F_dev*cummsum(filtered)/fs_tx +0.39*pi;  % ∫s(t)dt $-1.3164 for xy:2.7632,1.0365
+        phi_tx = 2*pi*F_dev*cumsum(filtered)/fs_tx +0.39*pi;  % ∫s(t)dt $-1.3164 for xy:2.7632,1.0365
         tmp_sig = cos(phi_tx);
         subplot(4,1,1);plot(time_16k,upsampled);ylim([min(upsampled) max(upsampled)]);
         title('Modulating Symbols');xlim([1 320]);grid on;
@@ -92,7 +92,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
         title('base-band modulated signal');xlim([1 320]);grid on;
         fig_num = fftTransform(tmp_sig,fs_tx,'spectrum-of-modulated-sig',fig_num,'b',false);
         steps = [64, 80, 96, 112, 128]; % phase step start point of f0,f1,f2,f3
-        cum_steps = steps*gspsdelay(FLT_gaussWin,1);
+        cum_steps = steps*grpdelay(FLT.gaussWin,1);
         cum_phi = phi_tx(cum_steps)'; disp(cum_phi);
         delta_phi = diff(cum_phi)/pi; disp(delta_phi);
     end
@@ -167,13 +167,6 @@ function [bits_out] = code2bin(code,Nup)
     bits = str2num(reshape(dec2bin(code)',[],1));
     Ntimes = fix(Nup/length(bits));
     bits_out(1:Ntimes*length(bits)) = repmat(bits,Ntimes,1);
-end
-
-function y = FLT_gaussWin(x)
-    % Gaussian filter for upsampled symbols
-    global zf_gaus
-    zf_gaus = [x; zf_gaus(1:end-1)];
-    y = conv(zf_gaus,gauss_coef,'valid');
 end
 
 function coef = gausspulsdesign(TBW,span,sps)
