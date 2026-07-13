@@ -21,10 +21,10 @@ function [rx_iq,rx_len] = sgmfsk_decimation(rx_baseband,fs,fs_tx,Direct_resample
 
 
     % decimation: 32Msps --2-->--2-->--2-->--125-->--4-->-- 8Ksps
-    dec_out_step1 = FLT.DEC_stage1(rx_baseband) / (Dec1*R1);    % R = 2,  N = 5, M = 1
-    dec_out_step2 = FLT.DEC_stage2(dec_out_step1) / (Dec2*R2);  % R = 2,  N = 5, M = 1
-    dec_out_step3 = FLT.DEC_stage3(dec_out_step2) / (Dec3*R3);  % R = 2,  N = 5, M = 1
-    dec_out_step4 = FLT.DEC_stage4(dec_out_step3) / (Dec4*R4);  % R = 125, N = 5, M = 1
+    dec_out_step1 = FLT.DEC_stage1(rx_baseband)/(Dec1^R1);    % R = 2,  N = 5, M = 1
+    dec_out_step2 = FLT.DEC_stage2(dec_out_step1)/(Dec2^R2);  % R = 2,  N = 5, M = 1
+    dec_out_step3 = FLT.DEC_stage3(dec_out_step2)/(Dec3^R3);  % R = 2,  N = 5, M = 1
+    dec_out_step4 = FLT.DEC_stage4(dec_out_step3)/(Dec4^R4);  % R = 125, N = 5, M = 1
     dec_out_step5 = FLT.DEC_stage5(dec_out_step4);              
     output.cic_o5_d2_out2 = dec_out_step2;
     output.cic_o5_d8_out  = dec_out_step4;

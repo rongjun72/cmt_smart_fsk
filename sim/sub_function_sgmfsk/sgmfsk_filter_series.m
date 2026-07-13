@@ -33,14 +33,15 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     
     %%% channel filter design (FIR)
     N = 48; Astop = 80; % Order, Stopband Attenuation(dB)
-    BW_fsk = (BW*1.04+(2*(Mfsk/2-1))*F_dev)-300+50*(-1);
+    BW_fsk = (BW*1.0+(1+2*(Mfsk/2-1))*F_dev)-300+50*(-1);
     Wp = 0.8*BW_fsk/(fs_chFilt/2); % 0.8 0.34 normalized Passband Frequency [1/2, 1.0] for better BER @ lower SNR
     Ws = 1.3*BW_fsk/(fs_chFilt/2); % 1.1 0.8 normalized Stopband Frequency [1/3, 0.8] for better BER @ lower SNR
     Hd_fir = fdesign.lowpass('n,fp,fst,ast', N, Wp, Ws, Astop);
     Hd_fir = design(Hd_fir, 'equiripple', 'FilterStructure', 'dfsymfir');
     FLT.chFilter = dsp.FIRFilter(Hd_fir.Numerator);
-    fvtool(FLT.chFilter,'Fs',fs_rx); %%fvtool(FLT.chFilter,'Fs',fs_chFilt);
-    title(sprintf('channel filter, [Wp,Ws]:[%.1f %.1f]',Wp*(fs_chFilt/2),Ws*(fs_chFilt/2)));
+    hh = fvtool(FLT.chFilter,'Fs',fs_rx);  %%fvtool(FLT.chFilter,'Fs',fs_chFilt);
+    hh.Name = 'chFilt'; ax = hh.CurrentAxes;
+    title(ax,sprintf('channel filter, [Wp,Ws]:[%.1f %.1f]',Wp*(fs_chFilt/2),Ws*(fs_chFilt/2)));
     
     % [bb,~] = mix_lpf_build(N,1900,80,fs_rx);
     % FLT.chFilter = dsp.FIRFilter(bb);
@@ -61,7 +62,9 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     %%%NbpF = 28; NlpF = 20;
     %%%[bb,~,b_bpfp,~,b_bpfn,~] = bpf_pair_fir_design(NbpF,F_dev*1.60,F_dev,fs_rx);
     NlpF = 36; NbpF = 20;%%14
-    [bb,~] = mix_lpf_build(NlpF,F_dev*1.80,80,fs_rx);
+    [bb,aa] = mix_lpf_build(NlpF,F_dev*1.80,80,fs_rx);
+    hh = fvtool(bb,aa,'Fs',fs_rx); 
+    hh.Name = 'mixLPF'; ax = hh.CurrentAxes;title(ax,sprintf('mix-LPF, fc = %.1fHz',F_dev*1.80));
     b_lpf = fir1(NlpF,1.0*BR/log2(Mfsk)*2/fs_rx);
     
     %%%b_bpfp = fir1(NbpF,F_dev/(fs_rx/2));
@@ -111,5 +114,5 @@ function [b, a] = mix_lpf_build(Nord,F_dev,Astop,fs)
     %%%Hd_fir = design(Hd_fir, 'equiripple', 'FilterStructure', 'dfsymfir');
     %%%[b,a] = tf(Hd_fir);
     
-    fvtool(b,a,'Fs',fs); title('mix-LPF design');
+    %%fvtool(b,a,'Fs',fs); title('mix-LPF design');
 end

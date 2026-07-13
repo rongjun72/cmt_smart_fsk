@@ -1,4 +1,5 @@
 function [fig_num] = fftTransform(rx_data,Fs,text_name,fig_num,color,hold_fig)
+    fft_points = length(rx_data);
     fft_in = rx_data(1:fft_points);
     fft_len = length(fft_in);
     fft_out = fft(fft_in)./fft_len;
