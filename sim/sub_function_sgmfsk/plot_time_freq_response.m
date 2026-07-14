@@ -40,7 +40,7 @@ function [amp_freq] = plot_time_freq_response(signal,fs,fig_num,varargin)
     amp_freq = m_fsk - max(m_fsk);
     if round(fs/1e6)>=1; uu='MHz'; nn=1e6; elseif round(fs/1e3)>=1; uu='kHz'; nn=1e3; else; uu='Hz'; nn=1; end
     freq = fs*((1:nfft)-nfft/2+1)/nfft/nn; % unit of frequency axes in MHz
-    time = (1:length(signal))/fs*1e6; % time in us
+    time = (1:length(signal));%%(1:length(signal))/fs; % time in us
     figure(fig_num);
 
     if max(abs(imag(signal)))>0

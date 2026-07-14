@@ -31,7 +31,7 @@ function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_
 
     for prev_g = 0:(Mfsk-1)
         for curr_g = 0:(Mfsk-1)
-            Nref_idx = (20+2)*sps_rx*(prev_g*Mfsk+curr_g) + filt_dly - sps_rx/2;
+            Nref_idx = (20+2)*sps_rx*(prev_g*Mfsk+curr_g+1) + filt_dly - sps_rx/2;
             ref_metric(prev_g+1,curr_g+1,1) = lpf_abs(Nref_idx,1)+lpf_abs(Nref_idx,1);%4;
             ref_metric(prev_g+1,curr_g+1,2) = lpf_abs(Nref_idx,2)+lpf_abs(Nref_idx+1,2);%5;
             ref_metric(prev_g+1,curr_g+1,3) = lpf_abs(Nref_idx,3)+lpf_abs(Nref_idx+1,3);%5;

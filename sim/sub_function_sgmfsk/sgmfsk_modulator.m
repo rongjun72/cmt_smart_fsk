@@ -134,8 +134,8 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     end
     phase_tx = 2*pi*fc*time_tx +phase_integra;
     % phase_tx = phase_integra;
-    %$$mod_signal = cos(phase_tx);%$$+0.39*pi);%$-1.3164);
-    mod_signal = exp(1i*phase_tx);
+    mod_signal = cos(phase_tx);%$$+0.39*pi);%$-1.3164);
+    %%mod_signal = exp(1i*phase_tx);
     % upsample for tx-signal
     tx_sig = mod_signal;
     if(DEBUG)
