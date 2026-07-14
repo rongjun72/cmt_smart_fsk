@@ -1,13 +1,6 @@
 %smart_gmfsk_16x.m
 %smart_gmfsk_16x.m
 clc;clear;close all;
-% 关闭前次运行遗留的 fvtool 窗口（MATLAB R2024a 中 fvtool 不是标准 figure，close all 不关闭）
-try
-    global FLT;
-    if isstruct(FLT) && isfield(FLT,'hfvt_ch'), close(FLT.hfvt_ch); end
-    if isstruct(FLT) && isfield(FLT,'hfvt_mix'), close(FLT.hfvt_mix); end
-catch
-end
 clearvars -global;
 addpath('.\sub_function_sgmfsk\');
 filename_res = 'mfsk_ber_16x.txt';
@@ -18,7 +11,7 @@ global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
 DEBUG = 0;
 fig_num = 1;
 filter_type = 0;
-NOISE_EN = 1;%1;
+NOISE_EN = 0;%1;
 CORDIC_EN = 0;
 %% 系统参数
 Mfsk = 4;
@@ -42,7 +35,7 @@ F_dev = h/Tsym;              % 最大频偏(Hz)
 % F_dev = 500Hz;
 % dev = 250e3;
 % F_dev = dev;
-Nsym_total = 8*1000; % 发射符号数
+Nsym_total = 200*1000; % 发射符号数
 Nsym_segment = 1000;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 13.6*log10(1:1.9:20)/log10(20);
@@ -126,7 +119,7 @@ for idx_method = 3:(N_method-1)
             last_rx_iq = curr_rx_iq;
             tdura = toc(tatart);
             %fprintf('idx:EbNo,symb. = %d:%d, EbNo = %3.1f, BER = %6.5e, proc time = %3.1f\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),tdura);
-            fprintf('idx:EbNo.symb = %d:%d, EbNo = %3.1f, BER0 = %4.3e, BER1 = %4.3e\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),BER_est(idx_method+1,idx_EbNo));
+            fprintf('idx:EbNo,symb. = %d:%d, EbNo = %3.1f, BER0 = %6.5e, BER1 = %6.5e\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),BER_est(idx_method+1,idx_EbNo));
             %fprintf('error pos : %d\n',error_pos);
         end
         BER_tot = ber_result_save(filename_res,bits_count,error_count,EbNo_dB,tsss);
@@ -144,17 +137,18 @@ for idx_EbNo = 1:EbNo_len
     fprintf('\n');
 end
 %%
-fd = figure;
-ui1 = uitable(fd,'Data',[EbNo_dB' BER_est'],'ColumnName',['EbNo' Demod_method_list],...
+u1=figure;
+uitable(u1,'Data',[EbNo_dB' BER_est'],'ColumnName',['EbNo' Demod_method_list],...
     'Units','normalized','Position',[0.01 0.35 0.95 0.6]);
-ui2 = uitable(fd,'Data',[sensitivities],'ColumnName',[Demod_method_list],'RowName','Sensitivity(dB)',...
-    'Units','normalized','Position',[0.01 0.20 0.95 0.1]);
+u2=figure;
+uitable(u2,'Data',[sensitivities'],'ColumnName',[Demod_method_list],'RowName',['Sensitivity(dB)'],...
+    'Units','normalized','Position',[0.20 0.95 0.11]);
 %% 绘图
 figure;
 semilogy(EbNo_dB,BER_est(1,:),'r--','LineWidth',2); hold on; % BER_theory_ncoh
 semilogy(EbNo_dB,BER_est(2,:),'g--','LineWidth',2); % BER_theory_coh
 for idx_method = 3:N_method
-    semilogy(EbNo_dB,BER_est(idx_method,:),'o-','LineWidth',2);
+    semilogy(EbNo_dB,BER_est(idx_method,:),'c--','LineWidth',2);
 end
 grid on;
 xlabel('E_b/N_0 (dB)','Interpreter','none');
@@ -200,12 +194,19 @@ function [BER_tot, BER_est, error_count, bits_count] = ber_state_init(filename_r
         fd_res = fopen(filename_res, 'w+');
         [BER_tot, BER_est, error_count, bits_count] = deal(zeros(N_method, EbNo_len));
         fprintf(fd_res, 'EbNo\t');
-        for i = 3:N_method; fprintf(fd_res,'%s_cnt\t%s_err\t%s_ber\t',Demod_methods{i},Demod_methods{i},Demod_methods{i});end
-        fprintf(fd_res, '\n-1\t'); for i = 3:N_method; fprintf(fd_res,'-1\t-1\t0\t'); end
+        for i = 1:N_method
+            fprintf(fd_res, '%s_cnt\t%s_err\t%s_ber\t', Demod_methods{i}, Demod_methods{i}, Demod_methods{i});
+        end
+        fprintf(fd_res, '\n');
+        for i = 3:N_method
+            fprintf(fd_res, '\t\t\t');
+        end
         fprintf(fd_res, '\n');
         for ii = 1:EbNo_len
             fprintf(fd_res, '%f\t', EbNo_dB(ii));
-            for iii = 3:N_method; fprintf(fd_res,'%d\t%d\t%e\t',bits_count(iii,ii),error_count(iii,ii),BER_tot(iii,ii)); end
+            for iii = 1:N_method
+                fprintf(fd_res, '%d\t%d\t%e\t', bits_count(iii, ii), error_count(iii, ii), BER_tot(iii, ii));
+            end
             fprintf(fd_res, '\n');
         end
         fclose(fd_res);
@@ -214,14 +215,13 @@ function [BER_tot, BER_est, error_count, bits_count] = ber_state_init(filename_r
         [BER_tot, BER_est, error_count, bits_count] = deal(zeros(N_method, EbNo_len));
         table = importdata(filename_res);
         [row, col] = size(table.data);
-        if ~isempty(find(table.data(row-EbNo_len, 1:2) >= 0))
+        if ~isempty(find(table.data(row-EbNo_len:row, 2:col) == 0))
             fprintf('WRONG format in file: %s\n', filename_res);
             return;
         else
             last_record = table.data(row-EbNo_len+1:row, 2:col);
-            bits_count(3:N_method, :) = last_record(1:3:col-1, :);
-            error_count(3:N_method, :) = last_record(2:3:col-1, :);
-            BER_tot(3:N_method,:) = last_record(3:3:col-1,:);
+            bits_count(3:N_method, :) = last_record(1:2:col-1, :);
+            error_count(3:N_method, :) = last_record(2:2:col-1, :);
         end
     end
 end
@@ -230,33 +230,37 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
     [row,col] = size(bits_count);
     N_method = row; EbNo_len = col;
     table = importdata(filename_res);
-    [row,col] = size(table.data);
     [BER_new] = deal(zeros(N_method,EbNo_len));
     td_frame = toc(tstart);
     if col ~= 3*(N_method-2)+1
         fprintf('data structure not in accordance with ...');
         return;
     end
-    if ~isempty(find(table.data(row-EbNo_len,1:2)>=0))
+    if ~isempty(find(table.data(row-EbNo_len+1:row,1:2)==0))
         fprintf('WRONG format in file: %s ',filename_res);
         return;
     else
-        %last_record = table.data(row-EbNo_len+1:row,2:col);
-        %bits_count_last(3:N_method,:) = last_record(1:2:col-1,:);
-        %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
+        last_record = table.data(row-EbNo_len+1:row,2:col);
+        bits_count_last(3:N_method,:) = last_record(1:2:col-1,:);
+        error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
         % 更新计数矩阵
-        %error_count = error_count + error_count_last;
-        %bits_count = bits_count + error_count_last;
+        error_count = error_count + error_count_last;
+        bits_count = bits_count + bits_count_last;
         % 计算新的BER
         BER_new = (error_count+eps)./(bits_count+eps);
-        new_idx = mean(table.data(row-EbNo_len,1:2))-1;
+        new_idx = mean(table.data(row-EbNo_len+1:row,1:2),2);
         fd_res = fopen(filename_res,'a+');
-        fprintf(fd_res,'%d\t',new_idx);for i = 3:N_method; fprintf(fd_res,'%d\t%d\t%f\t',new_idx,new_idx,td_frame);end
+        fprintf(fd_res,'%d\t',new_idx);
+        for i = 3:N_method
+            fprintf(fd_res,'%d\t%d\t%f\t',new_idx,new_idx,td_frame);
+        end
         fprintf(fd_res,'\n');
         for ii = 1:EbNo_len
             fprintf(fd_res,'%f\t',EbNo_dB(ii));
-            for iii = 3:N_method;fprintf(fd_res,'%d\t%d\t%e\t',bits_count(iii,ii),error_count(iii,ii),BER_new(iii,ii));end
-            fprintf(fd_res, '\n');
+            for iii = 3:N_method
+                fprintf(fd_res,'%d\t%d\t%e\t',bits_count(iii,ii),error_count(iii,ii),BER_new(iii,ii));
+            end
+            fprintf(fd_res,'\n');
         end
         fclose(fd_res);
     end

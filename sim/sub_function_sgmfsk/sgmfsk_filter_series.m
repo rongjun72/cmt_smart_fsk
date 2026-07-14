@@ -39,8 +39,8 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     Hd_fir = fdesign.lowpass('n,fp,fst,ast', N, Wp, Ws, Astop);
     Hd_fir = design(Hd_fir, 'equiripple', 'FilterStructure', 'dfsymfir');
     FLT.chFilter = dsp.FIRFilter(Hd_fir.Numerator);
-    FLT.hfvt_ch = fvtool(FLT.chFilter,'Fs',fs_rx);  %%fvtool(FLT.chFilter,'Fs',fs_chFilt);
-    FLT.hfvt_ch.Name = 'chFilt'; ax = FLT.hfvt_ch.CurrentAxes;
+    hh = fvtool(FLT.chFilter,'Fs',fs_rx);  %%fvtool(FLT.chFilter,'Fs',fs_chFilt);
+    hh.Name = 'chFilt'; ax = hh.CurrentAxes;
     title(ax,sprintf('channel filter, [Wp,Ws]:[%.1f %.1f]',Wp*(fs_chFilt/2),Ws*(fs_chFilt/2)));
     
     % [bb,~] = mix_lpf_build(N,1900,80,fs_rx);
@@ -63,8 +63,8 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     %%%[bb,~,b_bpfp,~,b_bpfn,~] = bpf_pair_fir_design(NbpF,F_dev*1.60,F_dev,fs_rx);
     NlpF = 36; NbpF = 20;%%14
     [bb,aa] = mix_lpf_build(NlpF,F_dev*1.80,80,fs_rx);
-    FLT.hfvt_mix = fvtool(bb,aa,'Fs',fs_rx); 
-    FLT.hfvt_mix.Name = 'mixLPF'; ax = FLT.hfvt_mix.CurrentAxes;title(ax,sprintf('mix-LPF, fc = %.1fHz',F_dev*1.80));
+    hh = fvtool(bb,aa,'Fs',fs_rx); 
+    hh.Name = 'mixLPF'; ax = hh.CurrentAxes;title(ax,sprintf('mix-LPF, fc = %.1fHz',F_dev*1.80));
     b_lpf = fir1(NlpF,1.0*BR/log2(Mfsk)*2/fs_rx);
     
     %%%b_bpfp = fir1(NbpF,F_dev/(fs_rx/2));
