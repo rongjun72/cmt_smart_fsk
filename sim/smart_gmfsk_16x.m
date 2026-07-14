@@ -1,6 +1,13 @@
 %smart_gmfsk_16x.m
 %smart_gmfsk_16x.m
 clc;clear;close all;
+% 关闭前次运行遗留的 fvtool 窗口（MATLAB R2024a 中 fvtool 不是标准 figure，close all 不关闭）
+try
+    global FLT;
+    if isstruct(FLT) && isfield(FLT,'hfvt_ch'), close(FLT.hfvt_ch); end
+    if isstruct(FLT) && isfield(FLT,'hfvt_mix'), close(FLT.hfvt_mix); end
+catch
+end
 clearvars -global;
 addpath('.\sub_function_sgmfsk\');
 filename_res = 'mfsk_ber_16x.txt';
@@ -249,7 +256,7 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
         for ii = 1:EbNo_len
             fprintf(fd_res,'%f\t',EbNo_dB(ii));
             for iii = 3:N_method;fprintf(fd_res,'%d\t%d\t%e\t',bits_count(iii,ii),error_count(iii,ii),BER_new(iii,ii));end
-            fprintf(fd_res,'\n');
+            fprintf(fd_res, '\n');
         end
         fclose(fd_res);
     end
