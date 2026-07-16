@@ -236,7 +236,7 @@ for sym_idx = 1:n_show
         if branch_gray == tx_gray
             plot(1:nsps, metrics(m,:), 'LineWidth', 2.5, 'Color', 'r', 'DisplayName', sprintf('Tx(B%d)', branch_gray));
         elseif abs(branch_gray - tx_gray) == 1 || abs(branch_gray - tx_gray) == 7
-            plot(1:nsps, metrics(m,:), 'LineWidth', 1.2, 'Color', [1 0.6, 0], 'DisplayName', sprintf('Adj(B%d)', branch_gray));
+            plot(1:nsps, metrics(m,:), 'LineWidth', 1.2, 'Color', [1 0.6 0], 'DisplayName', sprintf('Adj(B%d)', branch_gray));
         else
             plot(1:nsps, metrics(m,:), 'LineWidth', 0.8, 'Color', [0.7 0.7 0.7], 'HandleVisibility', 'off');
         end
