@@ -22,7 +22,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     % g2 = 1/(sqrt(2*pi)*sigma);
     % gauss_coef = g1*g2;
     % gauss_coef = gauss_coef / sum(gauss_coef);
-    g.TBW = 1;%$0.5;
+    g.TBW = 0.5;
     g.span = 4;
     g.sps = sps;%$16;
     gauss_coef = gausspulsdesign(g.TBW,g.span,g.sps);
@@ -57,9 +57,9 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     elseif strcmp(seg_type,"ref")
         padding = zeros(20,1);
         bits = code2bin([padding;0;0;padding;0;1;padding;0;2;padding;0;3;...
-            padding;1;0;padding;1;1;padding;1;2;padding;1;3;...
-            padding;2;0;padding;2;1;padding;2;2;padding;2;3;...
-            padding;3;0;padding;3;1;padding;3;2;padding;3;3],Nsym*2);
+                         padding;1;0;padding;1;1;padding;1;2;padding;1;3;...
+                         padding;2;0;padding;2;1;padding;2;2;padding;2;3;...
+                         padding;3;0;padding;3;1;padding;3;2;padding;3;3],Nsym*2);
     end
     %
     % 4FSK mapping: bit | quaternary | freq_dev
@@ -134,8 +134,8 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     end
     phase_tx = 2*pi*fc*time_tx +phase_integra;
     % phase_tx = phase_integra;
-    mod_signal = cos(phase_tx);%$$+0.39*pi);%$-1.3164);
-    %%mod_signal = exp(1i*phase_tx);
+    %%mod_signal = cos(phase_tx);%$$+0.39*pi);%$-1.3164);
+    mod_signal = exp(1i*phase_tx);
     % upsample for tx-signal
     tx_sig = mod_signal;
     if(DEBUG)

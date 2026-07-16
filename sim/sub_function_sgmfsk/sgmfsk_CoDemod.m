@@ -22,7 +22,7 @@ function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx
             if sps_rx == 8
                 ratio_dev = 1.1266;
             elseif sps_rx == 16
-                ratio_dev = 1.0;%1.08;
+                ratio_dev = 1.0;%%96;%1.08;
             end
 
             % +/-F_dev mixer and LPF
@@ -50,14 +50,14 @@ function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx
             % plot_time_freq_response(lpf_abs(:,1)-lpf_abs(:,2),fs_rx,50,'title','after LPF(positive-negative)','hold','on','double-side','on');
             samp_freq      = zeros(rx_len/sps_rx,Mfsk);
             samp_freq(:,1) = lpf_abs(sps_rx/2:sps_rx:end,1)+lpf_abs(sps_rx/2:sps_rx:end,1);%4
-            samp_freq(:,2) = lpf_abs(sps_rx/2:sps_rx:end,2)+lpf_abs((sps_rx/2+1):sps_rx:end,2);%5
-            samp_freq(:,3) = lpf_abs(sps_rx/2:sps_rx:end,3)+lpf_abs((sps_rx/2+1):sps_rx:end,3);%5
+            samp_freq(:,2) = lpf_abs(sps_rx/2:sps_rx:end,2)+lpf_abs((sps_rx/2+0):sps_rx:end,2);%5
+            samp_freq(:,3) = lpf_abs(sps_rx/2:sps_rx:end,3)+lpf_abs((sps_rx/2+0):sps_rx:end,3);%5
             samp_freq(:,4) = lpf_abs(sps_rx/2:sps_rx:end,4)+lpf_abs(sps_rx/2:sps_rx:end,4);%4
             [~,tmp_pos]    = max(samp_freq,[],2);
             %%%peak_stat = peak_statistic(tmp_pos,lpf_abs); % for debug
-            rx_bits = str2num(reshape(dec2bin(tmp_pos-1)',[],1))';
+            rx_bits = str2num(reshape(dec2bin(tmp_pos-1,2)',[],1))';
             det_sym = viterbi_decode_isi(samp_freq');
-            rx_bits_mlse = str2num(reshape(dec2bin(det_sym)',[],1))';
+            rx_bits_mlse = str2num(reshape(dec2bin(det_sym,2)',[],1))';
         case "FREQ-DET"
             diff_conj = rx_iq.*conj([last_iq;rx_iq(1:end-1)]);last_iq = rx_iq(end);
             %diff_map = FLT.LPF_pos1(diff_conj);
