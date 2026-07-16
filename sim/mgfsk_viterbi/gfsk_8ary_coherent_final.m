@@ -8,10 +8,16 @@ function gfsk_8ary_coherent_final()
 %   2. Channel: AWGN + 80dB out-of-band rejection channel filter
 %   3. Rx: 8-branch tone-mixer coherent detection + Chebyshev window LPF + maximum magnitude decision
 %   4. Analysis: theoretical M-ary orthogonal FSK coherent detection BER + noiseless error floor + BT parameter scan
+%
+% Key corrections (historical record):
+%   - total_delay must include transmitter gauss_filt group delay (~16 samples),
+%     otherwise sampling point systematically shifts by 1 symbol, causing BER≈0.5.
+%   - Use dynamic N_pre/N_post = ceil(total_delay/nsps)+5 to ensure filter full steady-state.
+%   - tone LPF fc = 0.75 * adjacent tone spacing, balancing adjacent channel isolation and ISI control.
 
 %% ========================================================================
 % 0. Configurable parameters
-%% ========================================================================
+% ========================================================================
 Rs      = 1e3;          % Symbol rate (Hz)
 Fs      = 16e3;         % Sampling rate (Hz)
 nsps    = Fs/Rs;        % Samples per symbol = 16
@@ -21,6 +27,7 @@ h       = 1.0;          % Modulation index: adjacent tone spacing = h*Rs = 1000 
 BT      = 0.5;          % Gaussian filter BT
 span    = 4;            % Gaussian filter span（Symbol count）
 Nsym    = 10000;        % Total symbol count (excluding preamble/postamble)
+% Actual generated Nsym_total = Nsym + N_pre + N_post, extract middle Nsym valid symbols
 
 EbN0_dB = 12*log10(1:1.9:20)/log10(20);  % Nonlinear EbN0 distribution: 0~12dB, dense at low SNR region
 Nsim    = 1;            % Simulations per point (Monte Carlo, 1 run already smooth enough)
@@ -31,7 +38,7 @@ RUN_H_SCAN         = true;   % Different modulation index h comparison
 
 %% ========================================================================
 % 1. Filter design and delay calculation
-%% ========================================================================
+% ========================================================================
 % 1.1 Gaussian frequency pulse (transmitter)
 gauss_filt = gaussdesign(BT, span, nsps);
 delay_gauss = grpdelay(gauss_filt,1,1)+0;
@@ -78,7 +85,7 @@ fprintf('N_pre=%d, N_post=%d, Nsym_valid=%d, First sample=%d, Last sample=%d\n\n
 
 %% ========================================================================
 % 2. Gray encoding/decoding mapping
-%% ========================================================================
+% ========================================================================
 % Natural binary -> Gray encoding
 gray_enc = [0; 1; 3; 2; 6; 7; 5; 4];   % 000->0, 001->1, 010->3, 011->2, 100->6, 101->7, 110->5, 111->4
 % Gray encoding -> natural binary
@@ -104,7 +111,7 @@ tone_freq = freq_no * h * Rs / 2;
 
 %% ========================================================================
 % 3. Helper function: generate GFSK signal (noiseless)
-%% ========================================================================
+% ========================================================================
     function [s, sym_gray, bits, Ns] = generate_gfsk(sym_seq, Ns_total)
         % sym_seq: 0..7 symbol sequence（LengthAny）
         Nsym_in = length(sym_seq);
@@ -141,7 +148,7 @@ tone_freq = freq_no * h * Rs / 2;
 
 %% ========================================================================
 % 4. Helper function: coherent detection (tone-mixer + LPF + sampling + decision)
-%% ========================================================================
+% ========================================================================
     function [det_sym, det_gray, branch_metric] = detect_coherent(r, Nsym_in, sample_idx_in)
         % r: Received signal（AlreadyFilteringOrOriginal）
         % Nsym_in: Valid symbol count
@@ -169,14 +176,14 @@ tone_freq = freq_no * h * Rs / 2;
         det_sym = gry2nat(det_gray + 1);  % ColumnVector Nsym x 1
     end
 
+%% ========================================================================
+% 5. Noiseless benchmark test: measure high-SNR error floor
+% ========================================================================
 if RUN_FLOOR_ANALYSIS || RUN_H_SCAN
     rng(42);  % Fixed seed for reproducibility
     sym_tx = randi([0, M-1], Nsym_total, 1);
 end
 
-%% ========================================================================
-% 5. Noiseless benchmark test: measure high-SNR error floor
-%% ========================================================================
 if RUN_FLOOR_ANALYSIS
     fprintf('--- Noiseless error floor test (BT = %.2f, h = %.2f)---\n', BT, h);
     [s, ~, bits_tx, Ns] = generate_gfsk(sym_tx, Ns_total);
@@ -252,7 +259,7 @@ end
 
 %% ========================================================================
 % 6. Error floor scan for different modulation index h
-%% ========================================================================
+% ========================================================================
 if RUN_H_SCAN
     h_scan = [0.5, 1.0];
     SER_floor_h = zeros(size(h_scan));
@@ -309,7 +316,7 @@ end
 
 %% ========================================================================
 % 7. Main simulation: Eb/N0 sweep
-%% ========================================================================
+% ========================================================================
 EbN0_lin = 10.^(EbN0_dB/10);
 BER_sim = zeros(size(EbN0_dB));
 SER_sim = zeros(size(EbN0_dB));
@@ -369,7 +376,7 @@ end
 
 %% ========================================================================
 % 8. Theoretical BER calculation: M-ary orthogonal FSK coherent detection (Gray coding)
-%% ========================================================================
+% ========================================================================
 % Exact formula：P_s = 1 - integral_{-inf}^{inf} phi(y) * [1-Q(y+sqrt(2*ebno*log2(M)))]^(M-1) dy
 % Where phi(y) = normpdf(y), Q(y) = qfunc(y)
 % P_b ≈ P_s / log2(M) （HighSNRApproximate）
@@ -406,7 +413,7 @@ BER_bound = (M-1)/log2(M) * qfunc(sqrt(EbN0_lin * log2(M)));
 
 %% ========================================================================
 % 9. Visualization
-%% ========================================================================
+% ========================================================================
 
 % Figure 1: BER curves (simulation vs theory)
 figure('Name', 'BER/SER Performance', 'Position', [100 100 800 600]);
@@ -532,7 +539,7 @@ axis equal; grid on;
 
 %% ========================================================================
 % 10. Results summary output
-%% ========================================================================
+% ========================================================================
 fprintf('\n========== RESULT SUMMARY ==========\n');
 fprintf('Eb/N0(dB) |  Sim BER  |  Sim SER  | Theory BER | Union Bound\n');
 fprintf('----------|-----------|-----------|------------|------------\n');
