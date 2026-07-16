@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Temporary files
+demo_temp.py
+sliding_temp.py
+trace_temp.py
+sliding_temp.txt
+trace_temp.txt
+
+# Simulation output data
+mfsk_ber_16x.txt
+sim/mfsk_ber_16x.txt
+
+# Translation artifacts
+translations_part1.json
+text_files_for_github.json
+_batch1.json
+chinese_phrases.txt
+
+# Build / IDE artifacts
+*.asv
+*.m~

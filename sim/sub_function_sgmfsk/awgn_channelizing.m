@@ -27,11 +27,11 @@ function [out_sig] = awgn_channelizing(in_sig,ENo_dB,Rb,fs,fs_rx,noise_en)
     % calculate power density in dB according to given ENo_dB
     No_dB = Eb_dB - ENo_dB;
     %No_power_dB = 10*log10(10^(No_dB/10)*(fs)); % noise power
-    No_power_dB = No_dB+10*log10(fs/2);
+    No_power_dB = No_dB+10*log10(fs/2)+3; % extra 3dB to eliminate TX complex iq, if TX real cos(*), no need this 3dB
 
 
     if noise_en
-        out_sig = in_sig + wgn(length(in_sig),1,No_power_dB);
+        out_sig = in_sig + wgn(length(in_sig),1,No_power_dB,'complex');
         %out_sig = ampgt(in_sig,SNR_dB,'measured');
     else
         out_sig = in_sig;
