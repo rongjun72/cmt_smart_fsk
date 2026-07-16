@@ -12,7 +12,7 @@ function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_
     if sps_rx == 8
         ratio_dev = 1.1266;
     elseif sps_rx == 16
-        ratio_dev = 1.0;%1.08;
+        ratio_dev = 1.0;%96;%1.08;
     end
 
     % +F_dev and -F_dev mixer and LPF
@@ -33,13 +33,23 @@ function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_
         for curr_g = 0:(Mfsk-1)
             Nref_idx = (20+2)*sps_rx*(prev_g*Mfsk+curr_g+1) + filt_dly - sps_rx/2;
             ref_metric(prev_g+1,curr_g+1,1) = lpf_abs(Nref_idx,1)+lpf_abs(Nref_idx,1);%4;
-            ref_metric(prev_g+1,curr_g+1,2) = lpf_abs(Nref_idx,2)+lpf_abs(Nref_idx+1,2);%5;
-            ref_metric(prev_g+1,curr_g+1,3) = lpf_abs(Nref_idx,3)+lpf_abs(Nref_idx+1,3);%5;
+            ref_metric(prev_g+1,curr_g+1,2) = lpf_abs(Nref_idx,2)+lpf_abs(Nref_idx+0,2);%5;
+            ref_metric(prev_g+1,curr_g+1,3) = lpf_abs(Nref_idx,3)+lpf_abs(Nref_idx+0,3);%5;
             ref_metric(prev_g+1,curr_g+1,4) = lpf_abs(Nref_idx,4)+lpf_abs(Nref_idx,4);%4;
         end
     end
 
-    % % Verify reference templates
+    % 在 ref_metric_gen 调用后，检查模板的区分度
+    fprintf('=== Reference Template Similarity Analysis ===\n');
+    for curr_g = 0:3
+        refs = squeeze(ref_metric(:, curr_g+1, :));  % 4(prev) × 4(branch)
+        refs_norm = refs ./ vecnorm(refs, 2, 2);      % 逐行归一化
+        % 计算 4 个 prev 状态之间的两两余弦相似度
+        sim_mat = refs_norm * refs_norm';             % 4×4
+        fprintf('curr_g=%d: max off-diag similarity = %.4f (should be << 1.0)\n', ...
+            curr_g, max(sim_mat(~eye(4))));
+    end    % % Verify reference templates
+    
     % fprintf('Reference templates computed.\n');
     % for prev_g = 0:3
     %     for curr_g = 0:3

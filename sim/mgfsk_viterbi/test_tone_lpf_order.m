@@ -193,7 +193,7 @@ end
 
 %% ========================================================================
 % 3. Visualization results
-%% ========================================================================
+% ========================================================================
 
 % Figure 1: Order vs noiseless BER (linear scale)
 figure('Name', 'Tone LPF Order vs BER (No Noise, Random Sequence)', 'Position', [100 100 900 500]);
@@ -247,7 +247,7 @@ title('ISI-Aware Viterbi Gain over Hard Decision (No Noise, Random Sequence)');
 
 %% ========================================================================
 % 4. Results summary
-%% ========================================================================
+% ========================================================================
 fprintf('\n========== SUMMARY ==========\n');
 fprintf('Order | delay_tone |  Hard BER   |  Vit BER   | Gain(dB)\n');
 fprintf('------|------------|-------------|------------|----------\n');
@@ -273,7 +273,7 @@ end
 %% ========================================================================
 % Nested function: Viterbi decoding (8-state ISI-aware)
 % Input parameter ref_metric varies with order, passed as parameter
-%% ========================================================================
+% ========================================================================
 function det_gray = viterbi_decode_isi(obs_matrix, ref_metric, M)
     [M_v, T] = size(obs_matrix);
     
