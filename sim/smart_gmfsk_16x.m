@@ -15,7 +15,7 @@ CORDIC_EN = 0;
 %% 系统参数
 Mfsk = 4;
 Mlog2 = log2(Mfsk);
-BR = Mlog2*1e3;              % 比特速率
+BR = Mlog2*1e3;              % 比特速率 (调制比特率 = 2 kbps)
 Tsym = 1/(BR/Mlog2);         % 符号周期 (s)
 fs = 32e6;%%32e6;            % 采样率 (Hz)
 sps = 16;                    % 发送端每个符号采样点数
@@ -44,6 +44,7 @@ f_off_hz = f_rf*f_off_ppm;
 CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
 INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
 K_conv = 3;         % 卷积码约束长度 (K=3 对应 (7,5) 码)
+code_rate = 1/2;    % (7,5) 卷积码码率
 trellis = poly2trellis(K_conv, [7 5]);  % (7,5) 卷积码, 1/2 码率
 tblen = 5*K_conv;   % 维特比回溯长度
 % 交织器维度: 编码后比特数 = Nsym_segment*2 = 4000
@@ -53,9 +54,11 @@ Nrow_int = 50; Ncol_int = 80;
 if CONV_EN
     bits_per_frame = Nsym_segment - (K_conv - 1);  % 每帧信息比特数
     filename_res = 'mfsk_ber_16x_conv.txt';        % 编码模式使用独立结果文件
+    BR_eff = BR * code_rate;                       % 信息比特率用于Eb/No计算
 else
     bits_per_frame = Nsym_segment * Mlog2;         % 每帧调制比特数
     filename_res = 'mfsk_ber_16x.txt';
+    BR_eff = BR;
 end
 %%
 FI = fimath('ProductMode','FullPrecision','SumMode','FullPrecision',...
@@ -98,7 +101,7 @@ for idx_method = 3:(N_method-1)
                 % generate first synchronization frame
                 [~,tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'syn',sps,fs,fs_tx,F_dev,Flo,fig_num);
                 %%---- AWGN Channelization on air ------
-                rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR,fs,fs_rx,NOISE_EN);
+                rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR_eff,fs,fs_rx,NOISE_EN);
                 [rx_sig_bb,rx_bb_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
                 [rx_sig,rx_len] = sgmfsk_decimation(rx_sig_bb,fs,fs_tx,filter_type);
                 [rx_cmix_out,time_rx] = rx_cmix(rx_sig,rx_len,0,fs_rx,CORDIC_EN);
@@ -123,7 +126,7 @@ for idx_method = 3:(N_method-1)
                     [tx_bits(idx_symb,:),tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num);
                 end
                 %%---- AWGN Channelization on air ------
-                rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR,fs,fs_rx,NOISE_EN);
+                rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR_eff,fs,fs_rx,NOISE_EN);
                 [rx_sig_bb,rx_bb_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
                 [rx_sig,rx_len] = sgmfsk_decimation(rx_sig_bb,fs,fs_tx,filter_type);
                 %% multi_channel_recv()
@@ -163,7 +166,7 @@ for idx_method = 3:(N_method-1)
                 BER_est(idx_method,idx_EbNo) = error_count(idx_method,idx_EbNo) / (bits_count(idx_method,idx_EbNo) + eps);
                 error_count(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) + err_cnt_mlse;
                 bits_count(idx_method+1,idx_EbNo) = bits_count(idx_method+1,idx_EbNo) + bit_cnt_mlse;
-                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+1,idx_EbNo) + eps);
+                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+idx_EbNo) + eps);
             end %idx_symb>1
         
             last_rx_iq = curr_rx_iq;
