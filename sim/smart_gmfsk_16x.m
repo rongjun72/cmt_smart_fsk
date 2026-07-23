@@ -3,7 +3,6 @@
 clc;clear;close all;
 clearvars -global;
 addpath('.\sub_function_sgmfsk\');
-filename_res = 'mfsk_ber_16x.txt';
 global FLT Samp_IDET Mfsk ref_metric; % global filter object array
 global DEBUG Demod_method last_pm;
 global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
@@ -41,6 +40,23 @@ Nsym_segment = 2000;
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
 f_off_hz = f_rf*f_off_ppm;
+%% 卷积编码 + 交织参数
+CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
+INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
+K_conv = 3;         % 卷积码约束长度 (K=3 对应 (7,5) 码)
+trellis = poly2trellis(K_conv, [7 5]);  % (7,5) 卷积码, 1/2 码率
+tblen = 5*K_conv;   % 维特比回溯长度
+% 交织器维度: 编码后比特数 = Nsym_segment*2 = 4000
+% 当 Nsym_segment=2000 时, 交织矩阵 50x80=4000
+Nrow_int = 50; Ncol_int = 80;
+%% 根据编码状态确定结果文件名和每帧比特数
+if CONV_EN
+    bits_per_frame = Nsym_segment - (K_conv - 1);  % 每帧信息比特数
+    filename_res = 'mfsk_ber_16x_conv.txt';        % 编码模式使用独立结果文件
+else
+    bits_per_frame = Nsym_segment * Mlog2;         % 每帧调制比特数
+    filename_res = 'mfsk_ber_16x.txt';
+end
 %%
 FI = fimath('ProductMode','FullPrecision','SumMode','FullPrecision',...
             'RoundingMethod','Round','OverflowAction','Saturate');
@@ -73,7 +89,7 @@ for idx_method = 3:(N_method-1)
         tx_snr = EbNo_dB(idx_EbNo);
         %% N symb loop = round(Nsym_total/Nsym_segment)+1;
         N_symb_loop = round(Nsym_total/Nsym_segment)+1;
-        tx_bits = zeros(N_symb_loop-1,Nsym_segment*Mlog2);
+        tx_bits = zeros(N_symb_loop-1,bits_per_frame);
         weight_cma = zeros(21,1); weight_cma(11)=1;
         for idx_symb = 0:N_symb_loop
             tatart = tic;
@@ -93,7 +109,19 @@ for idx_method = 3:(N_method-1)
             end
             if idx_symb<N_symb_loop && idx_symb>0
                 %% Gfsk generate()
-                [tx_bits(idx_symb,:),tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num);
+                if CONV_EN
+                    % 生成信息比特 -> 卷积编码 -> 块交织 -> 送入调制器
+                    tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
+                    tx_encoded = convenc(tx_bits(idx_symb,:)', trellis);
+                    if INTERLEAVE_EN
+                        tx_bits_send = conv_enc_interleave(tx_bits(idx_symb,:)', trellis, Nrow_int, Ncol_int);
+                    else
+                        tx_bits_send = tx_encoded;
+                    end
+                    [~,tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num,tx_bits_send);
+                else
+                    [tx_bits(idx_symb,:),tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num);
+                end
                 %%---- AWGN Channelization on air ------
                 rx_sig_rf = awgn_channelizing(tx_sig_rf,tx_snr,BR,fs,fs_rx,NOISE_EN);
                 [rx_sig_bb,rx_bb_len] = rx_ddc_mixer(rx_sig_rf,Flo,f_off_hz,time_tx);
@@ -109,16 +137,33 @@ for idx_method = 3:(N_method-1)
                 %[rx_bits,rx_bits_len] = gfsk_demodulator(demod_in,sps_rx,freq_off);
                 [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
                 % BER calculation
-                Nst = (1+0+(idx_symb==2)*ceil(7*filt_dly/sps_rx))*Mlog2-1;%40
-                Ncmp = (Nsym_segment -20 - (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx))*Mlog2;%960;
-                [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst:Ncmp),rx_bits(Nst:Ncmp));
-                [err_cnt_mlse,bit_cnt_mlse,~] = error_stat(tx_bits(idx_symb-1,Nst:Ncmp),rx_bits_mlse(Nst:Ncmp));
+                if CONV_EN
+                    % 编码模式: 解交织 + 维特比译码, BER 在信息比特级别统计
+                    sym_head_skip = (1 + 0 + (idx_symb==2)*ceil(7*filt_dly/sps_rx));
+                    sym_tail_skip = (20 + (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx));
+                    Nst_info = sym_head_skip + 1;
+                    Ncmp_info = bits_per_frame - sym_tail_skip;
+                    if INTERLEAVE_EN
+                        rx_info = deinterleave_conv_dec(rx_bits, trellis, Nrow_int, Ncol_int, tblen);
+                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen);
+                    else
+                        rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
+                        rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                    end
+                    [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info(Nst_info:Ncmp_info));
+                    [err_cnt_mlse,bit_cnt_mlse,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info_mlse(Nst_info:Ncmp_info));
+                else
+                    Nst = (1+0+(idx_symb==2)*ceil(7*filt_dly/sps_rx))*Mlog2-1;%40
+                    Ncmp = (Nsym_segment -20 - (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx))*Mlog2;%960;
+                    [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst:Ncmp),rx_bits(Nst:Ncmp));
+                    [err_cnt_mlse,bit_cnt_mlse,~] = error_stat(tx_bits(idx_symb-1,Nst:Ncmp),rx_bits_mlse(Nst:Ncmp));
+                end
                 error_count(idx_method,idx_EbNo) = error_count(idx_method,idx_EbNo) + err_cnt;
                 bits_count(idx_method,idx_EbNo) = bits_count(idx_method,idx_EbNo) + bit_cnt;
                 BER_est(idx_method,idx_EbNo) = error_count(idx_method,idx_EbNo) / (bits_count(idx_method,idx_EbNo) + eps);
                 error_count(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) + err_cnt_mlse;
                 bits_count(idx_method+1,idx_EbNo) = bits_count(idx_method+1,idx_EbNo) + bit_cnt_mlse;
-                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method,idx_EbNo) + eps);
+                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+1,idx_EbNo) + eps);
             end %idx_symb>1
         
             last_rx_iq = curr_rx_iq;
@@ -163,7 +208,12 @@ end
 grid on;
 xlabel('E_b/N_0 (dB)','Interpreter','none');
 ylabel('BER_est','Interpreter','none');
-title(sprintf('BER curve: fs_rx = %2.1fKSpS', fs_rx/1000));
+if CONV_EN
+    codec_str = '(7,5)Conv+Interleave';
+else
+    codec_str = 'Uncoded';
+end
+title(sprintf('BER curve: fs_rx = %2.1fKSpS, %s', fs_rx/1000, codec_str));
 ylim([1e-6 1e0]);text(0.2,5e-4,sprintf('BT=%.1f, h=%.1f, chFilt:[1.72,2.365]kHz',timeBwProduct,h));
 ylim([1e-6 1e0]);text(0.2,1e-4,sprintf('mix: +/-500,1500Hz, LPF fc: 750Hz(chebwin,Nrd=36)'));
 legend(cellstr(Demod_method_list(1:N_method)),'Location','southwest');
@@ -246,7 +296,7 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
     else
         %last_record = table.data(row-EbNo_len+1:row,2:col);
         %bits_count_last(3:N_method,:) = last_record(1:2:col-1,:);
-    %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
+        %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
         % 更新计数矩阵
         %error_count = error_count + error_count_last;
         %bits_count = bits_count + bits_count_last;
@@ -255,11 +305,11 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
         new_idx = mean(table.data(row-EbNo_len,1:2))-1;
         fd_res = fopen(filename_res,'a+');
         fprintf(fd_res,'%d\t',new_idx);for i = 3:N_method; fprintf(fd_res,'%d\t%d\t%f\t',new_idx,new_idx,td_frame);end
-        fprintf(fd_res,'\n');
+        fprintf(fd_res, '\n');
         for ii = 1:EbNo_len
-            fprintf(fd_res,'%f\t',EbNo_dB(ii));
+            fprintf(fd_res,'%f\t', EbNo_dB(ii));
             for iii = 3:N_method;fprintf(fd_res,'%d\t%d\t%e\t',bits_count(iii,ii),error_count(iii,ii),BER_new(iii,ii));end
-            fprintf(fd_res,'\n');
+            fprintf(fd_res, '\n');
         end
         fclose(fd_res);
     end
