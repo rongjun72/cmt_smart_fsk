@@ -166,7 +166,7 @@ for idx_method = 3:(N_method-1)
                 BER_est(idx_method,idx_EbNo) = error_count(idx_method,idx_EbNo) / (bits_count(idx_method,idx_EbNo) + eps);
                 error_count(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) + err_cnt_mlse;
                 bits_count(idx_method+1,idx_EbNo) = bits_count(idx_method+1,idx_EbNo) + bit_cnt_mlse;
-                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+idx_EbNo) + eps);
+                BER_est(idx_method+1,idx_EbNo) = error_count(idx_method+1,idx_EbNo) / (bits_count(idx_method+1,idx_EbNo) + eps);
             end %idx_symb>1
         
             last_rx_iq = curr_rx_iq;
