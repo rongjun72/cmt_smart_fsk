@@ -18,25 +18,25 @@ Mfsk = 4;
 Mlog2 = log2(Mfsk);
 BR = Mlog2*1e3;              % 比特速率
 Tsym = 1/(BR/Mlog2);         % 符号周期 (s)
-fs = 16e3;%%32e6;                   % 采样率 (Hz)
+fs = 32e6;%%32e6;            % 采样率 (Hz)
 sps = 16;                    % 发送端每个符号采样点数
 fs_tx = sps*(BR/Mlog2);      % 发射带的码元采样率
 BW = 1/Tsym;                 % 发射带宽
-% fs_rx = fs_tx;              % 接收信号的采样率
+% fs_rx = fs_tx;             % 接收信号的采样率
 q_span = 4;
-fs_rx = 16*BW;%fs_tx*BW;      % 接收信号的采样率
-Flo = 0;%%500e3;                 % 中频频率 (Hz)
+fs_rx = 16*BW;%fs_tx*BW;     % 接收信号的采样率
+Flo = 500e3;%%500e3;         % 中频频率 (Hz)
 f_rf = 433.92e6;             % 载波频率 (Hz)
 sps_rx = fs_rx*Tsym;         % 接收端每个符号采样点数
-timeBwProduct = 0.50;%0.50;% 带宽-时间积
-% timeBwProduct = BW*Tsym; % 带宽-时间积
+timeBwProduct = 0.50;%0.50;  % 带宽-时间积
+% timeBwProduct = BW*Tsym;   % 带宽-时间积
 h = 0.5;                     % 调制指数, h = F_dev*Tsym = F_dev/SymbRate
 F_dev = h/Tsym;              % 最大频偏(Hz)
 % F_dev = 500Hz;
 % dev = 250e3;
 % F_dev = dev;
-Nsym_total = 100000*1000; % 发射符号数
-Nsym_segment = 1000000;
+Nsym_total = 200*1000; % 发射符号数
+Nsym_segment = 2000;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
@@ -54,82 +54,16 @@ BER_theory_coh = berawgn(EbNo_dB,'fsk',2,'coherent');
 BER_theory_ncoh = berawgn(EbNo_dB,'fsk',2,'noncoherent');
 BER_est(1,:) = BER_theory_coh;
 BER_est(2,:) = BER_theory_ncoh;
+fd_proc = figure;
+ui_proc = uitable(fd_proc,'Data',[zeros(EbNo_len,1) EbNo_dB' BER_est'],'ColumnName',['idx_lp' 'EbNo' Demod_method_list],...
+    'Units','normalized','Position',[0.01 0.05 0.95 0.9],'FontSize',10);
+ui_proc.ColumnFormat = {'numeric','bank','short e','short e','short e','short e'};
+tatart0 = tic;
 for idx_method = 3:(N_method-1)
     Demod_method = Demod_method_list{idx_method};
     %% filter series delay
     [filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
     ref_metric = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
-    
-    % %% ===== No-Noise Self-Check & Template Comparison =====
-    % % 验证 ref_metric 与实际无噪声信号是否匹配
-    % fprintf('\n========== No-Noise Self-Check & Template Comparison ==========\n');
-    % 
-    % % 保存全局状态（防止测试干扰主仿真）
-    % N_32M_start_sv = N_32M_start; N_4K_start_sv = N_4K_start;
-    % last_rx_phase_sv = last_rx_phase; last_tx_phase_sv = last_tx_phase;
-    % last_iq_sv = last_iq;
-    % 
-    % % 重置滤波器（确保测试从干净状态开始）
-    % reset_filter_objs(FLT);
-    % 
-    % % 生成测试序列（固定种子，便于复现）
-    % rng(42);
-    % test_Nsym = 30;
-    % [test_tx_bits, test_tx_rf, test_time_tx, ~] = sgmfsk_modulator(test_Nsym, 'rand', sps, fs, fs_tx, F_dev, Flo, 0);
-    % 
-    % % 无噪声接收（SNR=100dB 等效无噪声）
-    % test_rx_rf = awgn_channelizing(test_tx_rf, 100, BR, fs, fs_rx, 0);
-    % [test_rx_bb, ~] = rx_ddc_mixer(test_rx_rf, Flo, 0, test_time_tx);
-    % [test_rx_dec, ~] = sgmfsk_decimation(test_rx_bb, fs, fs_tx, filter_type);
-    % [test_rx_cmix, test_time_rx] = rx_cmix(test_rx_dec, length(test_rx_dec), 0, fs_rx, CORDIC_EN);
-    % 
-    % test_rx_iq = FLT.chFilter(double(test_rx_cmix));
-    % test_demod_in = circshift(test_rx_iq, -filt_dly);
-    % 
-    % % 调用解调器（硬判决 + Viterbi）
-    % [test_rx_bits, ~, test_rx_bits_mlse] = sgmfsk_CoDemod(test_time_rx, test_demod_in, fs_rx, sps_rx, F_dev, 0, 'norm');
-    % 
-    % % 计算无噪声 BER
-    % test_n_bits = min(length(test_tx_bits), length(test_rx_bits));
-    % test_tx_bits_cmp = test_tx_bits(1:test_n_bits);
-    % test_err_hard = sum(test_tx_bits_cmp ~= test_rx_bits(1:test_n_bits));
-    % test_n_bits_vit = min(length(test_tx_bits), length(test_rx_bits_mlse));
-    % test_err_vit = sum(test_tx_bits(1:test_n_bits_vit) ~= test_rx_bits_mlse(1:test_n_bits_vit));
-    % 
-    % fprintf('No-Noise Test: Hard BER = %d/%d = %.4e\n', test_err_hard, test_n_bits, test_err_hard/test_n_bits);
-    % fprintf('No-Noise Test: Viterbi BER = %d/%d = %.4e\n', test_err_vit, test_n_bits_vit, test_err_vit/test_n_bits_vit);
-    % 
-    % % 如果 Viterbi 无噪声仍有错误，逐符号分析
-    % if test_err_vit > 0
-    %     fprintf('WARNING: Viterbi has %d errors without noise! Analyzing per-symbol...\n', test_err_vit);
-    %     fprintf('--- Symbol-level Viterbi error analysis ---\n');
-    %     for ii = 1:test_Nsym
-    %         if (ii-1)*Mlog2+Mlog2 <= length(test_rx_bits_mlse)
-    %             tx_sym = test_tx_bits((ii-1)*Mlog2+1:ii*Mlog2);
-    %             tx_sym_val = tx_sym(1)*2^(Mlog2-1);
-    %             for kk = 2:Mlog2; tx_sym_val = tx_sym_val + tx_sym(kk)*2^(Mlog2-kk); end
-    %             rx_sym = test_rx_bits_mlse((ii-1)*Mlog2+1:ii*Mlog2);
-    %             rx_sym_val = rx_sym(1)*2^(Mlog2-1);
-    %             for kk = 2:Mlog2; rx_sym_val = rx_sym_val + rx_sym(kk)*2^(Mlog2-kk); end
-    %             if rx_sym_val ~= tx_sym_val
-    %                 prev_sym = test_tx_bits(max(1,(ii-2)*Mlog2+1):max(Mlog2,(ii-2)*Mlog2+Mlog2));
-    %                 prev_val = prev_sym(1)*2^(Mlog2-1);
-    %                 for kk = 2:Mlog2; prev_val = prev_val + prev_sym(kk)*2^(Mlog2-kk); end
-    %                 fprintf('  Sym %2d: tx=%d, vit_rx=%d (prev=%d, curr=%d)\n', ii, tx_sym_val, rx_sym_val, prev_val, tx_sym_val);
-    %             end
-    %         end
-    %     end
-    % else
-    %     fprintf('PASS: Viterbi passes no-noise check.\n');
-    % end
-    % 
-    % % 恢复全局状态
-    % [N_32M_start, N_4K_start, last_rx_phase, last_tx_phase, last_iq] = ...
-    %     deal(N_32M_start_sv, N_4K_start_sv, last_rx_phase_sv, last_tx_phase_sv, last_iq_sv);
-    % 
-    % fprintf('========== End of Self-Check ==========\n\n');
-    % %% ===== End of Self-Check =====
-    
     for idx_EbNo = 1:EbNo_len
         reset_filter_objs(FLT);
         error_pos = 0; tsss = tic;
@@ -192,10 +126,16 @@ for idx_method = 3:(N_method-1)
             %fprintf('idx:EbNo,symb. = %d:%d, EbNo = %3.1f, BER = %6.5e, proc time = %3.1f\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),tdura);
             fprintf('idx:EbNo.symb = %d:%d, EbNo = %3.1f, BER0 = %4.3e, BER1 = %4.3e\n',idx_EbNo,idx_symb,tx_snr,BER_est(idx_method,idx_EbNo),BER_est(idx_method+1,idx_EbNo));
             %fprintf('error pos : %d\n',error_pos);
+            ui_proc.Data(idx_EbNo,1) = idx_symb;
+            ui_proc.Data(idx_EbNo,idx_method+2) = BER_est(idx_method,idx_EbNo);
+            ui_proc.Data(idx_EbNo,idx_method+3) = BER_est(idx_method+1,idx_EbNo);
+            drawnow;
         end
         BER_tot = ber_result_save(filename_res,bits_count,error_count,EbNo_dB,tsss);
     end
 end
+ttotal = toc(tatart0);
+fprintf('proc time = %3.1f\n',ttotal);
 %%
 sensitivities = sensitivity_calc(EbNo_dB,BER_est,0.001);
 % print BER table
@@ -223,10 +163,9 @@ end
 grid on;
 xlabel('E_b/N_0 (dB)','Interpreter','none');
 ylabel('BER_est','Interpreter','none');
-title(sprintf('BER curve: fs_rx = %2.1fKSpS (Min BER est: %2.1e-4), BW=fsk*%d, fs_rx/1000)',...
-    fs_rx/1000,min(BER_est(:)),Mfsk));
-ylim([min(BER_est(:)) 1e-0]);text(0.2,1e-4,'BT=0.5, h=0.5, chFilt:[1.72,2.365]kHz')
-ylim([min(BER_est(:)) 1e0]);text(0.2,5e-5,'mix: +/-450,1550Hz, LPF fc: 900Hz(chebwin,Nrd=36)')
+title(sprintf('BER curve: fs_rx = %2.1fKSpS', fs_rx/1000));
+ylim([1e-6 1e0]);text(0.2,5e-4,sprintf('BT=%.1f, h=%.1f, chFilt:[1.72,2.365]kHz',timeBwProduct,h));
+ylim([1e-6 1e0]);text(0.2,1e-4,sprintf('mix: +/-500,1500Hz, LPF fc: 750Hz(chebwin,Nrd=36)'));
 legend(cellstr(Demod_method_list(1:N_method)),'Location','southwest');
 disp('end');
 
@@ -307,7 +246,7 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
     else
         %last_record = table.data(row-EbNo_len+1:row,2:col);
         %bits_count_last(3:N_method,:) = last_record(1:2:col-1,:);
-        %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
+    %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
         % 更新计数矩阵
         %error_count = error_count + error_count_last;
         %bits_count = bits_count + bits_count_last;
@@ -323,30 +262,6 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
             fprintf(fd_res,'\n');
         end
         fclose(fd_res);
-    end
-end
-
-function sensitivity = sensitivity_calc(EbNo_dB,BER_estimation,BER_th)
-    BERlog10 = log10(BER_estimation);
-    [rows,cols] = size(BER_estimation);
-    sensitivity = zeros(1,rows);
-    for i=1:rows
-        sensitivity(i) = zero_crossing_find(EbNo_dB,BERlog10(i,:)-log10(BER_th));
-    end
-end
-
-function [zero_crossings] = zero_crossing_find(xrange,yvalues)
-    % 找到所有过零点及对应距离
-    % 输入参数 xrange 和 yvalues 维度必须相同
-    sign_vals = sign(sign(yvalues)-0.5);
-    sig_diff = [0 diff(sign_vals)];
-    zerox_pos = find(sig_diff~=0);
-    zero_crossings = zeros(1,length(zerox_pos));
-    for idx = 1:length(zerox_pos)
-        x_step = xrange(zerox_pos(idx))-xrange(zerox_pos(idx)-1);
-        y0 = yvalues(zerox_pos(idx)-1);
-        y1 = yvalues(zerox_pos(idx));
-        zero_crossings(idx) = xrange(zerox_pos(idx)-1) + x_step*y0/(y0-y1);
     end
 end
 
