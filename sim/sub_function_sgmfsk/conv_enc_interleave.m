@@ -18,8 +18,15 @@ function [encoded_interleaved, Nrow, Ncol] = conv_enc_interleave(info_bits, trel
 
     %% 2. 确定交织器维度
     if nargin < 3 || isempty(Nrow) || isempty(Ncol)
-        Ncol = ceil(sqrt(L));
-        Nrow = ceil(L / Ncol);
+        % 自动选择接近方阵的因数分解，使 Nrow*Ncol == L (无零填充)
+        Ncol = floor(sqrt(L));
+        while Ncol > 1
+            if mod(L, Ncol) == 0
+                break;
+            end
+            Ncol = Ncol - 1;
+        end
+        Nrow = L / Ncol;
     end
 
     %% 3. 零填充到完整的交织矩阵大小
