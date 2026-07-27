@@ -35,8 +35,8 @@ F_dev = h/Tsym;              % 最大频偏(Hz)
 % F_dev = 500Hz;
 % dev = 250e3;
 % F_dev = dev;
-Nsym_total = 200*1000*100; % 发射符号数
-Nsym_segment = 2000*100;
+Nsym_total = 200*1000*1; % 发射符号数
+Nsym_segment = 2000*1;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
@@ -51,7 +51,7 @@ trellis = poly2trellis(K_conv, [7 5]);  % (7,5) 卷积码, 1/2 码率
 tblen = 5*K_conv;   % 维特比回溯长度
 %% 根据编码状态确定结果文件名和每帧比特数
 if CONV_EN
-    bits_per_frame = Nsym_segment - (K_conv - 1);  % 每帧信息比特数
+    bits_per_frame = Nsym_segment;  % 每帧信息比特数 (编码后 = Nsym*2, 与调制器匹配)
     filename_res = 'mfsk_ber_16x_conv.txt';        % 编码模式使用独立结果文件
     BR_eff = BR * code_rate;                       % 信息比特率用于Eb/No计算
 else
