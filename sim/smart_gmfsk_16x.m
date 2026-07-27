@@ -45,9 +45,24 @@ if BYPASS_DEC == 1; fs = fs_rx; Flo = 0; end
 %% 卷积编码 + 交织参数
 CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
 INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
-K_conv = 3;         % 卷积码约束长度 (K=3 对应 (7,5) 码)
-code_rate = 1/2;    % (7,5) 卷积码码率
-trellis = poly2trellis(K_conv, [7 5]);  % (7,5) 卷积码, 1/2 码率
+% 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)'
+conv_code_type = '(7,5)';
+
+switch conv_code_type
+    case '(7,5)'
+        K_conv = 3;         % 约束长度
+        gen_poly = [7 5];   % 生成多项式 (八进制)
+    case '(15,13)'
+        K_conv = 4;
+        gen_poly = [15 13];
+    case '(23,35)'
+        K_conv = 5;
+        gen_poly = [23 35];
+    otherwise
+        error('Unsupported convolutional code type: %s', conv_code_type);
+end
+code_rate = 1/2;    % 以上均为 1/2 码率
+trellis = poly2trellis(K_conv, gen_poly);
 tblen = 5*K_conv;   % 维特比回溯长度
 %% 根据编码状态确定结果文件名和每帧比特数
 if CONV_EN
@@ -211,7 +226,11 @@ grid on;
 xlabel('E_b/N_0 (dB)','Interpreter','none');
 ylabel('BER_est','Interpreter','none');
 if CONV_EN
-    codec_str = '(7,5)Conv+Interleave';
+    if INTERLEAVE_EN
+        codec_str = sprintf('%s Conv+Interleave', conv_code_type);
+    else
+        codec_str = sprintf('%s Conv', conv_code_type);
+    end
 else
     codec_str = 'Uncoded';
 end
