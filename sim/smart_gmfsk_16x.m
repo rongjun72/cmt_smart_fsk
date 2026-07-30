@@ -35,18 +35,25 @@ F_dev = h/Tsym;              % 最大频偏(Hz)
 % F_dev = 500Hz;
 % dev = 250e3;
 % F_dev = dev;
-Nsym_total = 200*1000*1; % 发射符号数
-Nsym_segment = 2000*1;
+Nsym_total = 200*1000*200; % 发射符号数
+Nsym_segment = 2000*20;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
 f_off_hz = f_rf*f_off_ppm;
 if BYPASS_DEC == 1; fs = fs_rx; Flo = 0; end
+%%-------------------mod-demod config------------------------------------%
+global BIN_ALLOC RX_BIN_MIX chFiltFreq MIX_LPF_Fc;
+BW_fsk     = (BW*1.0+(1+2*(Mfsk/2-1))*F_dev)-300+50*(-1);
+chFiltFreq = [0.8 1.3];             % coef of Wp, Ws of channel filter
+MIX_LPF_Fc = 1.5;                   % fc of mix-LPF is:= F_dev*MIX_LPF_Fc
+BIN_ALLOC  = [3.6 1.2];             % 4GFSK bin.3 bin.2, bin frequency coefficient
+RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone frequency due to Gaussian 
 %% 卷积编码 + 交织参数
 CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
 INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
-% 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)'
-conv_code_type = '(7,5)';
+% 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
+conv_code_type = '(23,35)';
 
 switch conv_code_type
     case '(7,5)'
@@ -58,6 +65,9 @@ switch conv_code_type
     case '(23,35)'
         K_conv = 5;
         gen_poly = [23 35];
+    case '(171,133)'
+        K_conv = 7;         % 64-state
+        gen_poly = [171 133];% 八进制生成多项式
     otherwise
         error('Unsupported convolutional code type: %s', conv_code_type);
 end
@@ -235,8 +245,11 @@ else
     codec_str = 'Uncoded';
 end
 title(sprintf('BER curve: fs_rx = %2.1fKSpS, %s', fs_rx/1000, codec_str));
-ylim([1e-6 1e0]);text(0.2,5e-4,sprintf('BT=%.1f, h=%.1f, chFilt:[1.72,2.365]kHz',timeBwProduct,h));
-ylim([1e-6 1e0]);text(0.2,1e-4,sprintf('mix: +/-500,1500Hz, LPF fc: 750Hz(chebwin,Nrd=36)'));
+ylim([1e-7 1e0]);xlim([min(EbNo_dB) max(EbNo_dB)]);
+text(0.2,1e-3,sprintf('BT=%.1f, h=%.1f, chFilt:[%.0f,%.0f]Hz',timeBwProduct,h,chFiltFreq*BW_fsk));
+text(0.2,5e-4,sprintf('LPF fc: %dHz(chebwin,Nrd=36)',MIX_LPF_Fc*F_dev));
+text(0.2,2e-4,sprintf('mod bin = +/-[%d %d]Hz',BIN_ALLOC*F_dev));
+text(0.2,9e-5,sprintf('RX mix: [%d %d %d %d]Hz',RX_BIN_MIX));
 legend(cellstr(Demod_method_list(1:N_method)),'Location','southwest');
 disp('end');
 
