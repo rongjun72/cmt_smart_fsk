@@ -38,7 +38,7 @@ function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx
             lpf_abs(:,3) = abs(FLT.LPF_f3(mix_result(:,3))); % f2
             lpf_abs(:,4) = abs(FLT.LPF_f4(mix_result(:,4)))*ratio_dev;%%1.089;%1.1266; % f3
 
-            % 时频响应绘图（多个绘图函数调用，此处简化保留结构）
+            % Time-frequency response plotting (multiple plot calls, structure kept simplified)
             % plot_time_freq_response(mix_result(:,1),fs_rx,30,'title','after +/-F_dev mixing','hold','on','double-side','on');
             % plot_time_freq_response(mix_result(:,2),fs_rx,30,'title','after +/-F_dev mixing','hold','on','double-side','on');
             % plot_time_freq_response(mix_result(:,3),fs_rx,30,'title','after +/-F_dev mixing','hold','on','double-side','on');

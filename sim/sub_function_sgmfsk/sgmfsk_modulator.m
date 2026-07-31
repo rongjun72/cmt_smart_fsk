@@ -16,7 +16,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     tstart = tic;
     %------------------- GFSK TX side -------------------
     rng('shuffle');%random seeds
-    % 高斯滤波器
+    % Gaussian filter
     g.TBW = 0.5;
     g.span = 4;
     g.sps = sps;%$16;
@@ -38,16 +38,16 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
         title('phase-frequency response');
     end
     %
-    % 调制模块
+    % Modulation module
     if nargin >= 9 && ~isempty(custom_bits)
-        % 使用外部传入的比特序列 (支持打孔后的可变长度)
+        % Use externally provided bit sequence (supports variable length after puncturing)
         bits = custom_bits(:);
         if mod(length(bits), 2) ~= 0
             error('sgmfsk_modulator: custom_bits length (%d) must be even', length(bits));
         end
-        Nsym = length(bits) / 2;  % 根据实际比特数覆盖符号数
+        Nsym = length(bits) / 2;  % Override symbol count according to actual bit length
     elseif strcmp(seg_type,"rand")
-        % 使用外部传入的比特序列
+        % Use externally provided bit sequence
         bits = custom_bits(:);
         if length(bits) ~= Nsym*2
             error('sgmfsk_modulator: custom_bits length (%d) does not match Nsym*2 (%d)', ...
@@ -110,7 +110,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     N_32M_stop = N_32M_start+length(filtered_up_samp)-1;
     time_tx = (N_32M_start:N_32M_stop)'/fs;
     N_32M_start = N_32M_start+length(filtered_up_samp);
-    phase_integra = 2*pi*F_dev*cumsum(filtered_up_samp)/fs+last_tx_phase; % ∫s(t)dt
+    phase_integra = 2*pi*F_dev*cumsum(filtered_up_samp)/fs+last_tx_phase; % integral of s(t)dt
     last_tx_phase = phase_integra(end);
     if(DEBUG)
         tmp_sig =exp(1i*phase_integra);

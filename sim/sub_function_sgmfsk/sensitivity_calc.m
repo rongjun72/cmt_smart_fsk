@@ -8,8 +8,8 @@ function sensitivity = sensitivity_calc(EbNo_dB,BER_estimation,BER_th)
 end
 
 function [zero_crossings] = zero_crossing_find(xrange,yvalues)
-    % 找到所有过零点及对应距离
-    % 输入参数 xrange 和 yvalues 维度必须相同
+    % Find all zero crossings and corresponding distances
+    % Input parameters xrange and yvalues must have same dimensions
     sign_vals = sign(sign(yvalues)-0.5);
     sig_diff = [0 diff(sign_vals)];
     zerox_pos = find(sig_diff~=0);

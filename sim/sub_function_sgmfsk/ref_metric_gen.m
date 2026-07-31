@@ -39,13 +39,13 @@ function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_
         end
     end
 
-    % 在 ref_metric_gen 调用后，检查模板的区分度
+    % After ref_metric_gen call, check template discriminability
     fprintf('=== Reference Template Similarity Analysis ===\n');
     for curr_g = 0:3
-        refs = squeeze(ref_metric(:, curr_g+1, :));  % 4(prev) × 4(branch)
-        refs_norm = refs ./ vecnorm(refs, 2, 2);      % 逐行归一化
-        % 计算 4 个 prev 状态之间的两两余弦相似度
-        sim_mat = refs_norm * refs_norm';             % 4×4
+        refs = squeeze(ref_metric(:, curr_g+1, :));  % 4(prev) x 4(branch)
+        refs_norm = refs ./ vecnorm(refs, 2, 2);      % Row-wise normalization
+        % Compute pairwise cosine similarity among 4 prev states
+        sim_mat = refs_norm * refs_norm';             % 4x4
         fprintf('curr_g=%d: max off-diag similarity = %.4f (should be << 1.0)\n', ...
             curr_g, max(sim_mat(~eye(4))));
     end    % % Verify reference templates
