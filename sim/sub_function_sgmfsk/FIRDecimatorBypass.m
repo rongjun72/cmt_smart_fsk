@@ -1,16 +1,16 @@
 classdef FIRDecimatorBypass < matlab.System
     % FIRDecimatorBypass
-    % 封装dsp.FIRDecimator，M=1直通零延迟，M>1正常FIR抽取
-    % 支持两种创建方式：
-    % 1. 快速传系数：FIRDecimatorBypass(M, b_coeff)
-    % 2. 属性配置：FIRDecimatorBypass('DecimationFactor',4,'NumTaps',64)
+    % Wrap dsp.FIRDecimator, M=1 bypass zero delay, M>1 normal FIR decimation
+    % Support two creation methods:
+    % 1. Quick coefficient pass: FIRDecimatorBypass(M, b_coeff)
+    % 2. Property configuration: FIRDecimatorBypass('DecimationFactor',4,'NumTaps',64)
 
     properties
         DecimationFactor = 8
         NumTaps          = 64
         PassbandFraction = 0.4
         StopbandAttenuation = 60
-        Numerator = [] % 外部自定义FIR抽头，非空优先使用
+        Numerator = [] % External custom FIR taps, non-empty takes priority
     end
 
     properties (Access = private)
@@ -18,7 +18,7 @@ classdef FIRDecimatorBypass < matlab.System
     end
 
     methods
-        % 重载构造函数
+        % Override constructor
         function obj = FIRDecimatorBypass(varargin)
             if nargin == 2 && isnumeric(varargin{1}) && isnumeric(varargin{2})
                 obj.DecimationFactor = varargin{1};
@@ -28,20 +28,20 @@ classdef FIRDecimatorBypass < matlab.System
             end
         end
 
-        % 计算标量群时延（修复：不读取firObj.GroupDelay，改用b系数计算）
+        % Compute scalar group delay (fix: do not read firObj.GroupDelay, use b coefficients instead)
         function tau = grpDelay(obj)
             M = obj.DecimationFactor;
             if M == 1
                 tau = 0;
             else
-                % 先获取滤波器系数
+                % First get filter coefficients
                 [b,~] = obj.tf();
-                % 线性相位FIR群延迟 = (阶数)/2 = (抽头数-1)/2
+                % Linear-phase FIR group delay = (order)/2 = (taps-1)/2
                 tau = (length(b) - 1) / 2;
             end
         end
 
-        % 输出[b,a]供grpdelay使用
+        % Output [b,a] for grpdelay use
         function [b,a] = tf(obj)
             M = obj.DecimationFactor;
             if M == 1
@@ -61,10 +61,10 @@ classdef FIRDecimatorBypass < matlab.System
             M = obj.DecimationFactor;
             if M > 1
                 if ~isempty(obj.Numerator)
-                    % 外部传入滤波器抽头
+                    % External filter taps passed in
                     obj.firObj = dsp.FIRDecimator(M, obj.Numerator);
                 else
-                    % 自动设计FIR抽取滤波器
+                    % Auto-design FIR decimation filter
                     obj.firObj = dsp.FIRDecimator(...
                         'DecimationFactor', M, ...
                         'NumTaps', obj.NumTaps, ...

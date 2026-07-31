@@ -13,29 +13,29 @@ filter_type = 0;
 NOISE_EN = 1;%1;
 CORDIC_EN = 0;
 BYPASS_DEC = 1;
-%% 系统参数
+%% System parameters
 Mfsk = 4;
 Mlog2 = log2(Mfsk);
-BR = Mlog2*1e3;              % 比特速率 (调制比特率 = 2 kbps)
-Tsym = 1/(BR/Mlog2);         % 符号周期 (s)
-fs = 32e6;%%32e6;            % 采样率 (Hz)
-sps = 16;                    % 发送端每个符号采样点数
-fs_tx = sps*(BR/Mlog2);      % 发射带的码元采样率
-BW = 1/Tsym;                 % 发射带宽
-% fs_rx = fs_tx;             % 接收信号的采样率
+BR = Mlog2*1e3;              % Bit rate (modulation bit rate = 2 kbps)
+Tsym = 1/(BR/Mlog2);         % Symbol period (s)
+fs = 32e6;%%32e6;            % Sampling rate (Hz)
+sps = 16;                    % TX samples per symbol
+fs_tx = sps*(BR/Mlog2);      % TX symbol sampling rate
+BW = 1/Tsym;                 % TX bandwidth
+% fs_rx = fs_tx;             % RX sampling rate
 q_span = 4;
-fs_rx = sps*BW;%fs_tx*BW;     % 接收信号的采样率
-Flo = 500e3;%%500e3;         % 中频频率 (Hz)
-f_rf = 433.92e6;             % 载波频率 (Hz)
-sps_rx = fs_rx*Tsym;         % 接收端每个符号采样点数
-timeBwProduct = 0.50;%0.50;  % 带宽-时间积
-% timeBwProduct = BW*Tsym;   % 带宽-时间积
-h = 0.5;                     % 调制指数, h = F_dev*Tsym = F_dev/SymbRate
-F_dev = h/Tsym;              % 最大频偏(Hz)
+fs_rx = sps*BW;%fs_tx*BW;     % RX sampling rate
+Flo = 500e3;%%500e3;         % Intermediate frequency (Hz)
+f_rf = 433.92e6;             % Carrier frequency (Hz)
+sps_rx = fs_rx*Tsym;         % RX samples per symbol
+timeBwProduct = 0.50;%0.50;  % Bandwidth-time product
+% timeBwProduct = BW*Tsym;   % Bandwidth-time product
+h = 0.5;                     % Modulation index, h = F_dev*Tsym = F_dev/SymbRate
+F_dev = h/Tsym;              % Max frequency deviation (Hz)
 % F_dev = 500Hz;
 % dev = 250e3;
 % F_dev = dev;
-Nsym_total = 200*1000*200; % 发射符号数
+Nsym_total = 200*1000*200; % Number of transmitted symbols
 Nsym_segment = 2000*20;
 %%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
@@ -49,17 +49,17 @@ chFiltFreq = [0.8 1.3];             % coef of Wp, Ws of channel filter
 MIX_LPF_Fc = 1.5;                   % fc of mix-LPF is:= F_dev*MIX_LPF_Fc
 BIN_ALLOC  = [3.6 1.2];             % 4GFSK bin.3 bin.2, bin frequency coefficient
 RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone frequency due to Gaussian 
-%% 卷积编码 + 交织参数
-CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
-INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
-PUNCTURE_EN = 1;    % 打孔使能: 0=关闭(1/2码率), 1=开启
-% 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
+%% Convolutional encoding + interleaving parameters
+CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on
+INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
+PUNCTURE_EN = 1;    % Puncturing enable: 0=off (1/2 rate), 1=on
+% Convolutional code type selection: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
 conv_code_type = '(171,133)';
 
 switch conv_code_type
     case '(7,5)'
-        K_conv = 3;         % 约束长度
-        gen_poly = [7 5];   % 生成多项式 (八进制)
+        K_conv = 3;         % Constraint length
+        gen_poly = [7 5];   % Generator polynomial (octal)
     case '(15,13)'
         K_conv = 4;
         gen_poly = [15 13];
@@ -68,29 +68,29 @@ switch conv_code_type
         gen_poly = [23 35];
     case '(171,133)'
         K_conv = 7;         % 64-state
-        gen_poly = [171 133];% 八进制生成多项式
+        gen_poly = [171 133];% Octal generator polynomial
     otherwise
         error('Unsupported convolutional code type: %s', conv_code_type);
 end
 
-% 打孔模式选择 (母码率 1/2)
+% Puncture pattern selection (mother code rate 1/2)
 if PUNCTURE_EN
-    % puncvec = [1 1 1 0];       % 2/3 码率 (周期4, 保留3/4)
-    puncvec = [1 1 1 0 0 1];   % 3/4 码率 (周期6, 保留4/6)
+    % puncvec = [1 1 1 0];       % 2/3 code rate (period 4, keep 3/4)
+    puncvec = [1 1 1 0 0 1];   % 3/4 code rate (period 6, keep 4/6)
     code_rate = 1/2 * length(puncvec) / sum(puncvec);
 else
     puncvec = [];
     code_rate = 1/2;
 end
 trellis = poly2trellis(K_conv, gen_poly);
-tblen = 5*K_conv;   % 维特比回溯长度
-%% 根据编码状态确定结果文件名和每帧比特数
+tblen = 5*K_conv;   % Viterbi traceback length
+%% Determine result filename and bits per frame based on encoding state
 if CONV_EN
-    bits_per_frame = Nsym_segment;  % 每帧信息比特数 (编码后 = Nsym*2, 与调制器匹配)
-    filename_res = 'mfsk_ber_16x_conv.txt';        % 编码模式使用独立结果文件
-    BR_eff = BR * code_rate;                       % 信息比特率用于Eb/No计算
+    bits_per_frame = Nsym_segment;  % Info bits per frame (encoded = Nsym*2, matched to modulator)
+    filename_res = 'mfsk_ber_16x_conv.txt';        % Encoding mode uses separate result file
+    BR_eff = BR * code_rate;                       % Info bit rate for Eb/No calculation
 else
-    bits_per_frame = Nsym_segment * Mlog2;         % 每帧调制比特数
+    bits_per_frame = Nsym_segment * Mlog2;         % Modulation bits per frame
     filename_res = 'mfsk_ber_16x.txt';
     BR_eff = BR;
 end
@@ -147,7 +147,7 @@ for idx_method = 3:(N_method-1)
             if idx_symb<N_symb_loop && idx_symb>0
                 %% Gfsk generate()
                 if CONV_EN
-                    % 生成信息比特 -> 卷积编码 -> (打孔) -> 块交织 -> 送入调制器
+                    % Generate info bits -> conv encode -> (puncture) -> block interleave -> feed to modulator
                     tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
                     tx_encoded = convenc(tx_bits(idx_symb,:)', trellis);
                     if INTERLEAVE_EN
@@ -175,7 +175,7 @@ for idx_method = 3:(N_method-1)
                 [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
                 % BER calculation
                 if CONV_EN
-                    % 编码模式: 解交织 + 维特比译码, BER 在信息比特级别统计
+                    % Encoding mode: deinterleave + Viterbi decode, BER counted at info bit level
                     sym_head_skip = (1 + 0 + (idx_symb==2)*ceil(7*filt_dly/sps_rx));
                     sym_tail_skip = (20 + (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx));
                     Nst_info = sym_head_skip + 1;
@@ -240,7 +240,7 @@ ui1 = uitable(fd,'Data',[EbNo_dB' BER_est'],'ColumnName',['EbNo' Demod_method_li
     'Units','normalized','Position',[0.01 0.35 0.95 0.6]);
 ui2 = uitable(fd,'Data',[sensitivities],'ColumnName',[Demod_method_list],'RowName','Sensitivity(dB)',...
     'Units','normalized','Position',[0.01 0.20 0.95 0.1]);
-%% 绘图
+%% Plotting
 figure;
 semilogy(EbNo_dB,BER_est(1,:),'r--','LineWidth',2); hold on; % BER_theory_ncoh
 semilogy(EbNo_dB,BER_est(2,:),'g--','LineWidth',2); % BER_theory_coh
@@ -281,7 +281,7 @@ function reset_filter_objs(filter_array)
     end
 end
 
-%% CMA 均衡函数
+%% CMA equalization function
 function [y_out, W_cma] = cma_eq(x_in, W_cma, miu)
     xlen = length(x_in);
     kw = length(W_cma);
@@ -292,18 +292,18 @@ function [y_out, W_cma] = cma_eq(x_in, W_cma, miu)
         for k = 1:xlen-kw
             mov_win = fliplr(x_in(k:k+kw-1));
             y_out(k) = W_cma' * mov_win;
-            E_cma(k) = y_out(k) * (y_out(k)*y_out(k)' - 1); % CMA 误差函数
-            W_cma = W_cma - miu * conj(E_cma(k)) * mov_win; % 权重更新
+            E_cma(k) = y_out(k) * (y_out(k)*y_out(k)' - 1); % CMA error function
+            W_cma = W_cma - miu * conj(E_cma(k)) * mov_win; % Weight update
         end
     end
 end
 
-%% BER 状态初始化函数
+%% BER state initialization function
 function [BER_tot, BER_est, error_count, bits_count] = ber_state_init(filename_res, Demod_methods, EbNo_dB, newFile)
     N_method = length(Demod_methods);
     EbNo_len = length(EbNo_dB);
     if strcmp(newFile, 'newFile') || exist(filename_res, 'file') ~= 2
-        % 新建文件
+        % Create new file
         fd_res = fopen(filename_res, 'w+');
         [BER_tot, BER_est, error_count, bits_count] = deal(zeros(N_method, EbNo_len));
         fprintf(fd_res, 'EbNo\t');
@@ -317,7 +317,7 @@ function [BER_tot, BER_est, error_count, bits_count] = ber_state_init(filename_r
         end
         fclose(fd_res);
     else
-        % 读取已有文件
+        % Read existing file
         [BER_tot, BER_est, error_count, bits_count] = deal(zeros(N_method, EbNo_len));
         table = importdata(filename_res);
         [row, col] = size(table.data);
@@ -351,10 +351,10 @@ function [BER_new] = ber_result_save(filename_res,bits_count,error_count,EbNo_dB
         %last_record = table.data(row-EbNo_len+1:row,2:col);
         %bits_count_last(3:N_method,:) = last_record(1:2:col-1,:);
         %error_count_last(3:N_method,:) = last_record(2:2:col-1,:);
-        % 更新计数矩阵
+        % Update count matrix
         %error_count = error_count + error_count_last;
         %bits_count = bits_count + bits_count_last;
-        % 计算新的BER
+        % Compute new BER
         BER_new = (error_count+eps)./(bits_count+eps);
         new_idx = mean(table.data(row-EbNo_len,1:2))-1;
         fd_res = fopen(filename_res,'a+');

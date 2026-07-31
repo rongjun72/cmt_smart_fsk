@@ -1,7 +1,7 @@
 classdef CICDecimatorBypass < matlab.System
     % CICDecimatorBypass
-    % DecimationFactor=1：直通 H(z)=1，群时延恒0
-    % DecimationFactor>1：封装dsp.CICDecimator，通过公式计算群时延
+    % DecimationFactor=1: bypass H(z)=1, group delay always 0
+    % DecimationFactor>1: wrap dsp.CICDecimator, compute group delay by formula
 
     properties
         DecimationFactor = 8
@@ -18,7 +18,7 @@ classdef CICDecimatorBypass < matlab.System
             setProperties(obj, nargin, varargin{:});
         end
 
-        % 标量群时延，改用公式计算，不读取cicObj.GroupDelay
+        % Scalar group delay, computed by formula instead of reading cicObj.GroupDelay
         function tau = grpDelay(obj)
             R = obj.DecimationFactor;
             N = obj.NumSections;
@@ -30,7 +30,7 @@ classdef CICDecimatorBypass < matlab.System
             end
         end
 
-        % 输出[b,a]供grpdelay调用
+        % Output [b,a] for grpdelay call
         function [b,a] = tf(obj)
             R = obj.DecimationFactor;
             if R == 1
