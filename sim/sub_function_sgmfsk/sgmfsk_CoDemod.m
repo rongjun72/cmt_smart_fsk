@@ -1,5 +1,5 @@
 function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx,sps_rx,f_dev,freq_off,sync)
-    global last_tx_phase FLT Samp_1DET fskDemod Demod_method last_iq Mfsk; 
+    global last_tx_phase FLT Samp_1DET fskDemod Demod_method last_iq Mfsk RX_BIN_MIX; 
     %%global b_lpf_BDly_b bpfbp bpfbn bpfbday b_zf_p b_zf_n b_lpf_p b_lpf_n ;
     %method = 'NCCH-REF';%'MIX-LPF';%'FS-BAND';%'MIX-LPF';%'FREQ-DET';%'NCCH-REF'
     rx_len = length(rx_iq);
@@ -31,7 +31,7 @@ function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx
             %freq_err = [2000 500 -500 -2000];
             %freq_err = [1150 500 -500 -1150];
             %freq_err = [1550 450 -450 -1550];
-            Ftone_arr = [1500 500 -500 -1500];
+            Ftone_arr = RX_BIN_MIX; %[1500 500 -500 -1500];
             mix_result   = rx_iq_mat.*exp(1j*2*pi*time_rx*Ftone_arr);
             lpf_abs(:,1) = abs(FLT.LPF_f1(mix_result(:,1)))*ratio_dev;%%1.089;%1.1266; % f0
             lpf_abs(:,2) = abs(FLT.LPF_f2(mix_result(:,2))); % f1

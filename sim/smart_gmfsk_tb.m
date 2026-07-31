@@ -53,7 +53,7 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
 INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
 % 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
-conv_code_type = '(171,133)';
+conv_code_type = '(23,35)';
 
 switch conv_code_type
     case '(7,5)'

@@ -1,6 +1,6 @@
 function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     %%% CIC filter
-    global BYPASS_DEC FLT Demod_method Mfsk;
+    global BYPASS_DEC FLT Demod_method Mfsk chFiltFreq MIX_LPF_Fc;
     Dec1 = 2; Dec2 = 2; Dec3 = 2; Dec4 = 125;
     if BYPASS_DEC == 1; Dec1 = 1; Dec2 = 1; Dec3 = 1; Dec4 = 1; end
     fs_cic_out = fs/Dec1/Dec2/Dec3/Dec4; Dec5 = fs_cic_out/fs_rx;
@@ -32,10 +32,11 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     end
     
     %%% channel filter design (FIR)
-    N = 48; Astop = 85; % Order, Stopband Attenuation(dB)
+    N = 48; Astop = 80; % Order, Stopband Attenuation(dB)
     BW_fsk = (BW*1.0+(1+2*(Mfsk/2-1))*F_dev)-300+50*(-1);
-    Wp = 0.7*BW_fsk/(fs_chFilt/2); % 0.8 0.34 normalized Passband Frequency [1/2, 1.0] for better BER @ lower SNR
-    Ws = 1.3*BW_fsk/(fs_chFilt/2); % 1.1 0.8 normalized Stopband Frequency [1/3, 0.8] for better BER @ lower SNR
+    kp = chFiltFreq(1); ks = chFiltFreq(2); % chFiltFreq = [0.8 1.3]
+    Wp = kp*BW_fsk/(fs_chFilt/2); % 0.8 0.34 normalized Passband Frequency [1/2, 1.0] for better BER @ lower SNR
+    Ws = ks*BW_fsk/(fs_chFilt/2); % 1.1 0.8 normalized Stopband Frequency [1/3, 0.8] for better BER @ lower SNR
     Hd_fir = fdesign.lowpass('n,fp,fst,ast', N, Wp, Ws, Astop);
     Hd_fir = design(Hd_fir, 'equiripple', 'FilterStructure', 'dfsymfir');
     FLT.chFilter = dsp.FIRFilter(Hd_fir.Numerator);
@@ -62,10 +63,10 @@ function delay_n = sgmfsk_filter_series(BW,fs,BR,fs_rx,g_TBW,g_span,g_sps,F_dev)
     %%%NbpF = 28; NlpF = 20;
     %%%[bb,~,b_bpfp,~,b_bpfn,~] = bpf_pair_fir_design(NbpF,F_dev*1.60,F_dev,fs_rx);
     NlpF = 36; NbpF = 20;%%14
-    [bb,aa] = mix_lpf_build(NlpF,F_dev*1.5,80,fs_rx);
+    [bb,aa] = mix_lpf_build(NlpF,F_dev*MIX_LPF_Fc,80,fs_rx);
     fd2 = fvtool(bb,aa,'Fs',fs_rx); 
     fd2.Name = 'mixLPF'; ax2 = fd2.CurrentAxes;
-    title(ax2,sprintf('mix-LPF, fc = %.1fHz',F_dev*1.5));
+    title(ax2,sprintf('mix-LPF, fc = %.1fHz',F_dev*MIX_LPF_Fc));
     b_lpf = fir1(NlpF,1.0*BR/log2(Mfsk)*2/fs_rx);
     
     %%%b_bpfp = fir1(NbpF,F_dev/(fs_rx/2));

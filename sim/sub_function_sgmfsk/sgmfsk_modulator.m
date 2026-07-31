@@ -12,7 +12,7 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     % gauss_coef: Gaussian filter coefficients
     % generate random symbols/bits, fsk modulating(not quadrature modulation/IQ)
     % GFSK modulation/IQ)
-    global DEBUG FLT N_32M_start last_tx_phase % zf_gaus
+    global DEBUG FLT N_32M_start last_tx_phase BIN_ALLOC% zf_gaus
     tstart = tic;
     %------------------- GFSK TX side -------------------
     rng('shuffle');%random seeds
@@ -63,7 +63,8 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     %               01 | 1          | -F_dev
     %               11 | 2          | +F_dev
     %               10 | 3          | 3F_dev
-    xx = 3.0; yy = 1.0; aa = xx+yy; bb = xx-yy;
+    bin_2 = BIN_ALLOC(1); bin_3 = BIN_ALLOC(2); 
+    aa = bin_2+bin_3; bb = bin_2-bin_3; % bin_2 = 3.0; bin_3 = 1.0
     symbols = reshape(bits,2,Nsym)'*[aa;bb] - (aa+bb)/2;
     upsampled = repelem(symbols,sps,1);
     filtered = FLT.gaussWin(upsampled); % input MUST be N*1 array

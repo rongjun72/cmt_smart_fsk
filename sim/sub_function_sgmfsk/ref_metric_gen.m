@@ -1,5 +1,5 @@
 function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly)
-    global Mfsk FLT N_32M_start N_4K_start last_tx_phase;
+    global Mfsk FLT N_32M_start N_4K_start last_tx_phase RX_BIN_MIX;
     [N_32M_start, N_4K_start, last_tx_phase, freq_off] = deal(0);
     ref_metric = zeros(Mfsk,Mfsk,Mfsk);
 
@@ -18,7 +18,7 @@ function [ref_metric] = ref_metric_gen(Nsym_segment,sps,fs,fs_tx,fs_rx,sps_rx,F_
     % +F_dev and -F_dev mixer and LPF
     rx_iq_mat = repelem(rx_iq,1,Mfsk);
     %%Ftone_arr = [1550 450 -450 -1650];
-    Ftone_arr = [1500 500 -500 -1500];
+    Ftone_arr = RX_BIN_MIX; %[1500 500 -500 -1500];
     mix_result   = rx_iq_mat.*exp(1i*2*pi*time_rx*Ftone_arr);
     lpf_abs(:,1) = abs(FLT.LPF_f1(mix_result(:,1)))*ratio_dev;%%/1.0489;%%1.1266; % f0
     lpf_abs(:,2) = abs(FLT.LPF_f2(mix_result(:,2))); % f1
