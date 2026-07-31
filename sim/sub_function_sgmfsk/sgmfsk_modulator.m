@@ -40,6 +40,13 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
     %
     % 调制模块
     if nargin >= 9 && ~isempty(custom_bits)
+        % 使用外部传入的比特序列 (支持打孔后的可变长度)
+        bits = custom_bits(:);
+        if mod(length(bits), 2) ~= 0
+            error('sgmfsk_modulator: custom_bits length (%d) must be even', length(bits));
+        end
+        Nsym = length(bits) / 2;  % 根据实际比特数覆盖符号数
+    elseif strcmp(seg_type,"rand")
         % 使用外部传入的比特序列
         bits = custom_bits(:);
         if length(bits) ~= Nsym*2

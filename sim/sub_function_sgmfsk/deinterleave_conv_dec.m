@@ -1,15 +1,21 @@
-function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow, Ncol, tblen)
-%DEINTERLEAVE_CONV_DEC 解交织 + 维特比硬判决译码
+function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow, Ncol, tblen, puncvec)
+%DEINTERLEAVE_CONV_DEC 解交织 + (可选解打孔) + 维特比硬判决译码
 %   对接收到的编码比特序列先进行块解交织，再用维特比算法硬判决译码。
+%   若提供了打孔向量 puncvec，则 vitdec 内部自动处理解打孔。
 %
 %   输入:
 %     rx_encoded_bits - 接收端编码比特序列 (0/1)
 %     trellis         - 卷积码 trellis 结构
 %     Nrow, Ncol      - 交织器行列数
 %     tblen           - 维特比回溯长度 (可选, 默认 5*K)
+%     puncvec         - 打孔向量 (可选). 与编码端一致
 %
 %   输出:
 %     info_bits_est   - 译码后的信息比特 (列向量)
+
+    if nargin < 6
+        puncvec = [];
+    end
 
     L = length(rx_encoded_bits);
     mat_size = Nrow * Ncol;
@@ -25,11 +31,15 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
     mat = reshape(rx_padded(1:mat_size), Nrow, Ncol)';
     deinterleaved = mat(:);
 
-    %% 3. 维特比译码 (硬判决, trunc 模式)
+    %% 3. 维特比译码 (硬判决, trunc 模式, 可选打孔)
     if nargin < 5 || isempty(tblen)
         K = log2(trellis.numStates) + 1;
         tblen = 5 * K;
     end
 
-    info_bits_est = vitdec(deinterleaved, trellis, tblen, 'trunc', 'hard');
+    if ~isempty(puncvec)
+        info_bits_est = vitdec(deinterleaved, trellis, tblen, 'trunc', 'hard', puncvec);
+    else
+        info_bits_est = vitdec(deinterleaved, trellis, tblen, 'trunc', 'hard');
+    end
 end

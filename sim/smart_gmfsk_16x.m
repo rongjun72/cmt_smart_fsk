@@ -52,6 +52,7 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 %% 卷积编码 + 交织参数
 CONV_EN = 1;        % 卷积编码使能: 0=关闭, 1=开启
 INTERLEAVE_EN = 1;  % 块交织使能: 0=关闭, 1=开启
+PUNCTURE_EN = 1;    % 打孔使能: 0=关闭(1/2码率), 1=开启
 % 卷积码类型选择: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
 conv_code_type = '(171,133)';
 
@@ -71,7 +72,16 @@ switch conv_code_type
     otherwise
         error('Unsupported convolutional code type: %s', conv_code_type);
 end
-code_rate = 1/2;    % 以上均为 1/2 码率
+
+% 打孔模式选择 (母码率 1/2)
+if PUNCTURE_EN
+    % puncvec = [1 1 1 0];       % 2/3 码率 (周期4, 保留3/4)
+    puncvec = [1 1 1 0 0 1];   % 3/4 码率 (周期6, 保留4/6)
+    code_rate = 1/2 * length(puncvec) / sum(puncvec);
+else
+    puncvec = [];
+    code_rate = 1/2;
+end
 trellis = poly2trellis(K_conv, gen_poly);
 tblen = 5*K_conv;   % 维特比回溯长度
 %% 根据编码状态确定结果文件名和每帧比特数
@@ -137,13 +147,13 @@ for idx_method = 3:(N_method-1)
             if idx_symb<N_symb_loop && idx_symb>0
                 %% Gfsk generate()
                 if CONV_EN
-                    % 生成信息比特 -> 卷积编码 -> 块交织 -> 送入调制器
+                    % 生成信息比特 -> 卷积编码 -> (打孔) -> 块交织 -> 送入调制器
                     tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
                     tx_encoded = convenc(tx_bits(idx_symb,:)', trellis);
                     if INTERLEAVE_EN
-                        [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis);
+                        [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis, [], [], puncvec);
                     else
-                        tx_bits_send = tx_encoded;
+                        tx_bits_send = puncture_bits(tx_encoded, puncvec);
                     end
                     [~,tx_sig_rf,time_tx,fig_num] = sgmfsk_modulator(Nsym_segment,'rand',sps,fs,fs_tx,F_dev,Flo,fig_num,tx_bits_send);
                 else
@@ -171,11 +181,16 @@ for idx_method = 3:(N_method-1)
                     Nst_info = sym_head_skip + 1;
                     Ncmp_info = bits_per_frame - sym_tail_skip;
                     if INTERLEAVE_EN
-                        rx_info = deinterleave_conv_dec(rx_bits, trellis, Nrow_int, Ncol_int, tblen);
-                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen);
+                        rx_info = deinterleave_conv_dec(rx_bits, trellis, Nrow_int, Ncol_int, tblen, puncvec);
+                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec);
                     else
-                        rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
-                        rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                        if ~isempty(puncvec)
+                            rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard', puncvec);
+                            rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
+                        else
+                            rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
+                            rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                        end
                     end
                     [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info(Nst_info:Ncmp_info));
                     [err_cnt_mlse,bit_cnt_mlse,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info_mlse(Nst_info:Ncmp_info));
@@ -236,10 +251,15 @@ grid on;
 xlabel('E_b/N_0 (dB)','Interpreter','none');
 ylabel('BER_est','Interpreter','none');
 if CONV_EN
-    if INTERLEAVE_EN
-        codec_str = sprintf('%s Conv+Interleave', conv_code_type);
+    if PUNCTURE_EN
+        rate_str = sprintf(', R=%g', code_rate);
     else
-        codec_str = sprintf('%s Conv', conv_code_type);
+        rate_str = '';
+    end
+    if INTERLEAVE_EN
+        codec_str = sprintf('%s Conv+Interleave%s', conv_code_type, rate_str);
+    else
+        codec_str = sprintf('%s Conv%s', conv_code_type, rate_str);
     end
 else
     codec_str = 'Uncoded';
