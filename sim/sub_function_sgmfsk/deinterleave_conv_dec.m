@@ -1,17 +1,17 @@
 function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow, Ncol, tblen, puncvec)
-%DEINTERLEAVE_CONV_DEC 解交织 + (可选解打孔) + 维特比硬判决译码
-%   对接收到的编码比特序列先进行块解交织，再用维特比算法硬判决译码。
-%   若提供了打孔向量 puncvec，则 vitdec 内部自动处理解打孔。
+%DEINTERLEAVE_CONV_DEC Deinterleaving + (optional depuncturing) + Viterbi hard-decision decoding
+%   Block-deinterleave the received encoded bit sequence, then Viterbi hard-decision decode.
+%   If puncture vector puncvec is provided, vitdec automatically handles depuncturing internally.
 %
-%   输入:
-%     rx_encoded_bits - 接收端编码比特序列 (0/1)
-%     trellis         - 卷积码 trellis 结构
-%     Nrow, Ncol      - 交织器行列数
-%     tblen           - 维特比回溯长度 (可选, 默认 5*K)
-%     puncvec         - 打孔向量 (可选). 与编码端一致
+%   Input:
+%     rx_encoded_bits - Received encoded bit sequence (0/1)
+%     trellis         - Convolutional code trellis structure
+%     Nrow, Ncol      - Interleaver row/column count
+%     tblen           - Viterbi traceback length (optional, default 5*K)
+%     puncvec         - Puncture vector (optional). Same as encoder side
 %
-%   输出:
-%     info_bits_est   - 译码后的信息比特 (列向量)
+%   Output:
+%     info_bits_est   - Decoded info bits (column vector)
 
     if nargin < 6
         puncvec = [];
@@ -20,18 +20,18 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
     L = length(rx_encoded_bits);
     mat_size = Nrow * Ncol;
 
-    %% 1. 零填充到完整矩阵大小
+    %% 1. Zero-pad to full matrix size
     if L < mat_size
         rx_padded = [rx_encoded_bits(:); zeros(mat_size - L, 1)];
     else
         rx_padded = rx_encoded_bits(:);
     end
 
-    %% 2. 块解交织: 按列写入矩阵, 按行读出
+    %% 2. Block deinterleaving: write by column, read by row
     mat = reshape(rx_padded(1:mat_size), Nrow, Ncol)';
     deinterleaved = mat(:);
 
-    %% 3. 维特比译码 (硬判决, trunc 模式, 可选打孔)
+    %% 3. Viterbi decode (hard-decision, trunc mode, optional puncturing)
     if nargin < 5 || isempty(tblen)
         K = log2(trellis.numStates) + 1;
         tblen = 5 * K;
