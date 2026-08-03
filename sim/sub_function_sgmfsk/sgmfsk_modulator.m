@@ -47,13 +47,6 @@ function [bits,tx_sig,time_tx,fig_num] = sgmfsk_modulator(Nsym,seg_type,sps,fs,f
         end
         Nsym = length(bits) / 2;  % Override symbol count according to actual bit length
     elseif strcmp(seg_type,"rand")
-        % Use externally provided bit sequence
-        bits = custom_bits(:);
-        if length(bits) ~= Nsym*2
-            error('sgmfsk_modulator: custom_bits length (%d) does not match Nsym*2 (%d)', ...
-                  length(bits), Nsym*2);
-        end
-    elseif strcmp(seg_type,"rand")
         bits = randi([0 1],Nsym*2,1);
     elseif strcmp(seg_type,"syn")
         bits = code2bin([0;1;2;3],Nsym*2);
