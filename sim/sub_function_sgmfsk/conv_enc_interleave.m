@@ -22,6 +22,13 @@ function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_b
 
     %% 2. Puncturing (optional)
     if ~isempty(puncvec)
+        % Pad encoded bits to integer multiple of puncture period
+        % so that punctured length is integer multiple of sum(puncvec)
+        p = length(puncvec);
+        rem_len = mod(length(encoded), p);
+        if rem_len > 0
+            encoded = [encoded; zeros(p - rem_len, 1)];
+        end
         encoded = puncture_bits(encoded, puncvec);
     end
     L = length(encoded);
