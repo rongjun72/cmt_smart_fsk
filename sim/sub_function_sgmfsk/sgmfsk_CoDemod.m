@@ -1,9 +1,10 @@
-function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx,sps_rx,f_dev,freq_off,sync)
+function [rx_bits,rx_bits_len,rx_bits_mlse,rx_soft] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx,sps_rx,f_dev,freq_off,sync)
     global last_tx_phase FLT Samp_1DET fskDemod Demod_method last_iq Mfsk RX_BIN_MIX; 
     %%global b_lpf_BDly_b bpfbp bpfbn bpfbday b_zf_p b_zf_n b_lpf_p b_lpf_n ;
     %method = 'NCCH-REF';%'MIX-LPF';%'FS-BAND';%'MIX-LPF';%'FREQ-DET';%'NCCH-REF'
     rx_len = length(rx_iq);
     rx_bits_len = log2(Mfsk)*rx_len/sps_rx;
+    rx_soft = []; % default: no soft metrics for non-MIX-LPF modes
 
     if(0)
         figure(1001); pwelch(rx_iq,rx_len/2,rx_len/4,rx_len/2,fs_rx,'centered','power');title('pwd-bef-fir');
@@ -58,6 +59,22 @@ function [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,rx_iq,fs_rx
             rx_bits = str2num(reshape(dec2bin(tmp_pos-1,2)',[],1))';
             det_sym = viterbi_decode_isi(samp_freq');
             rx_bits_mlse = str2num(reshape(dec2bin(det_sym,2)',[],1))';
+
+            % === Compute bit-level soft metrics (max-log LLR) for unquantized Viterbi ===
+            % Gray mapping: 00->tone0, 01->tone1, 11->tone2, 10->tone3
+            % bit1 (MSB): 0 = tones {0,1}, 1 = tones {2,3}
+            % bit0 (LSB): 0 = tones {0,3}, 1 = tones {1,2}
+            % vitdec 'unquant': positive = logic 1, negative = logic 0
+            Nsym_dec = size(samp_freq, 1);
+            s0 = samp_freq(:,1); s1 = samp_freq(:,2); s2 = samp_freq(:,3); s3 = samp_freq(:,4);
+            % MSB: positive when tones 2,3 stronger (MSB=1)
+            llr_b1 = max(s2, s3) - max(s0, s1);
+            % LSB: positive when tones 1,2 stronger (LSB=1)
+            llr_b0 = max(s1, s2) - max(s0, s3);
+            % Interleave: [b1(1), b0(1), b1(2), b0(2), ...]
+            rx_soft = zeros(2*Nsym_dec, 1);
+            rx_soft(1:2:end) = llr_b1;
+            rx_soft(2:2:end) = llr_b0;
         case "FREQ-DET"
             diff_conj = rx_iq.*conj([last_iq;rx_iq(1:end-1)]);last_iq = rx_iq(end);
             %diff_map = FLT.LPF_pos1(diff_conj);
