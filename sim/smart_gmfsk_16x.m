@@ -172,7 +172,7 @@ for idx_method = 3:(N_method-1)
             if idx_symb>1
                 demod_in = [last_rx_iq(filt_dly+1:end); curr_rx_iq(1:filt_dly)];
                 %[rx_bits,rx_bits_len] = gfsk_demodulator(demod_in,sps_rx,freq_off);
-                [rx_bits,rx_bits_len,rx_bits_mlse] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
+                [rx_bits,rx_bits_len,rx_bits_mlse,rx_soft] = sgmfsk_CoDemod(time_rx,demod_in,fs_rx,sps_rx,F_dev,freq_off,'norm');
                 % BER calculation
                 if CONV_EN
                     % Encoding mode: deinterleave + Viterbi decode, BER counted at info bit level
@@ -180,15 +180,18 @@ for idx_method = 3:(N_method-1)
                     sym_tail_skip = (20 + (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx));
                     Nst_info = sym_head_skip + 1;
                     Ncmp_info = bits_per_frame - sym_tail_skip;
+                    nsdec = 8;
                     if INTERLEAVE_EN
-                        rx_info = deinterleave_conv_dec(rx_bits, trellis, Nrow_int, Ncol_int, tblen, puncvec);
-                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec);
+                        rx_info = deinterleave_conv_dec(rx_soft, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'soft', nsdec);
+                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'hard');
                     else
+                        rx_soft_q = round((tanh(rx_soft) + 1) * (2^nsdec - 1) / 2);
+                        rx_soft_q = max(0, min(2^nsdec - 1, rx_soft_q));
                         if ~isempty(puncvec)
-                            rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard', puncvec);
+                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
                             rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
                         else
-                            rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
+                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec);
                             rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
                         end
                     end

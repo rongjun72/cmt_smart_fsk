@@ -8,7 +8,7 @@ global DEBUG BYPASS_DEC Demod_method last_pm;
 global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
 %% DEBUG enable
 DEBUG = 0;          fig_num = 1;        filter_type = 0;
-NOISE_EN = 1;       CORDIC_EN = 0;      BYPASS_DEC = 1;
+NOISE_EN = 0;       CORDIC_EN = 0;      BYPASS_DEC = 1;
 %% System parameters
 Mfsk = 4;           Mlog2 = log2(Mfsk);
 BR = Mlog2*1e3;              % Bit rate (modulation bit rate = 2 kbps)
@@ -26,7 +26,7 @@ sps_rx = fs_rx*Tsym;         % RX samples per symbol
 timeBwProduct = 0.50;%0.50;  % Bandwidth-time product
 h = 0.5;                     % Modulation index, h = F_dev*Tsym = F_dev/SymbRate
 F_dev = h/Tsym;              % Max frequency deviation (Hz)
-Nsym_total = 200*2000*100;    % Number of transmitted symbols
+Nsym_total = 200*2000*50;    % Number of transmitted symbols
 Nsym_segment = 2000*40;
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
@@ -41,7 +41,7 @@ BIN_ALLOC  = [3.6 1.2];             % 4GFSK bin.3 bin.2, bin frequency coefficie
 RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone frequency due to Gaussian 
 %% Convolutional encoding + interleaving parameters
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on MUST be 1 inthis test
-INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
+INTERLEAVE_EN = 0;  % Block interleaving enable: 0=off, 1=on
 PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
 Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);   EbNo_len = length(EbNo_dB);
@@ -134,15 +134,18 @@ for idx_tb = 1:N_testbech
                     sym_tail_skip = (20 + (idx_symb==N_symb_loop)*ceil(7*filt_dly/sps_rx));
                     Nst_info = sym_head_skip + 1;
                     Ncmp_info = bits_per_frame - sym_tail_skip;
+                    nsdec = 8;
                     if INTERLEAVE_EN
-                        rx_info = deinterleave_conv_dec(rx_soft, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'unquant');
+                        rx_info = deinterleave_conv_dec(rx_soft, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'soft', nsdec);
                         rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'hard');
                     else
+                        rx_soft_q = round((tanh(rx_soft) + 1) * (2^nsdec - 1) / 2);
+                        rx_soft_q = max(0, min(2^nsdec - 1, rx_soft_q));
                         if ~isempty(puncvec)
-                            rx_info = vitdec(rx_soft(:), trellis, tblen, 'trunc', 'unquant', puncvec);
+                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
                             rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
                         else
-                            rx_info = vitdec(rx_soft(:), trellis, tblen, 'trunc', 'unquant');
+                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec);
                             rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
                         end
                     end
