@@ -8,7 +8,7 @@ global DEBUG BYPASS_DEC Demod_method last_pm;
 global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
 %% DEBUG enable
 DEBUG = 0;          fig_num = 1;        filter_type = 0;
-NOISE_EN = 0;       CORDIC_EN = 0;      BYPASS_DEC = 1;
+NOISE_EN = 1;       CORDIC_EN = 0;      BYPASS_DEC = 1;
 %% System parameters
 Mfsk = 4;           Mlog2 = log2(Mfsk);
 BR = Mlog2*1e3;              % Bit rate (modulation bit rate = 2 kbps)
@@ -41,7 +41,7 @@ BIN_ALLOC  = [3.6 1.2];             % 4GFSK bin.3 bin.2, bin frequency coefficie
 RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone frequency due to Gaussian 
 %% Convolutional encoding + interleaving parameters
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on MUST be 1 inthis test
-INTERLEAVE_EN = 0;  % Block interleaving enable: 0=off, 1=on
+INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
 PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
 Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);   EbNo_len = length(EbNo_dB);
@@ -187,11 +187,13 @@ for idx_tb = 1:N_testbech
         fprintf('\n');
     end
     %%
-    fd = figure;
+    fd  = figure;
+    txt = uicontrol(fd,'Style','edit','Units','normalized','Position',[0.3 0.92 0.4 0.06],...
+        'String',sprintf('convolution code type: %s',conv_code_type));
     ui1 = uitable(fd,'Data',[EbNo_dB' BER_est'],'ColumnName',['EbNo' Demod_method_list],...
-        'Units','normalized','Position',[0.01 0.35 0.95 0.6]);
+        'Units','normalized','Position',[0.01 0.30 0.95 0.6]);
     ui2 = uitable(fd,'Data',[sensitivities],'ColumnName',[Demod_method_list],'RowName','Sensitivity(dB)',...
-        'Units','normalized','Position',[0.01 0.20 0.95 0.1]);
+        'Units','normalized','Position',[0.01 0.15 0.95 0.1]);
     %% Plotting
     figure;
     semilogy(EbNo_dB,BER_est(1,:),'r--','LineWidth',2); hold on; % BER_theory_ncoh
