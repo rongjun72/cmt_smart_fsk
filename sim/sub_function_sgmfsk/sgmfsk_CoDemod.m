@@ -61,16 +61,16 @@ function [rx_bits,rx_bits_len,rx_bits_mlse,rx_soft] = sgmfsk_CoDemod(time_rx,rx_
             rx_bits_mlse = str2num(reshape(dec2bin(det_sym,2)',[],1))';
 
             % === Compute bit-level soft metrics (max-log LLR) for unquantized Viterbi ===
-            % Gray mapping: 00->tone0, 01->tone1, 11->tone2, 10->tone3
+            % Natural binary mapping (from dec2bin): 00->tone0, 01->tone1, 10->tone2, 11->tone3
             % bit1 (MSB): 0 = tones {0,1}, 1 = tones {2,3}
-            % bit0 (LSB): 0 = tones {0,3}, 1 = tones {1,2}
+            % bit0 (LSB): 0 = tones {0,2}, 1 = tones {1,3}
             % vitdec 'unquant': positive = logic 1, negative = logic 0
             Nsym_dec = size(samp_freq, 1);
             s0 = samp_freq(:,1); s1 = samp_freq(:,2); s2 = samp_freq(:,3); s3 = samp_freq(:,4);
             % MSB: positive when tones 2,3 stronger (MSB=1)
             llr_b1 = max(s2, s3) - max(s0, s1);
-            % LSB: positive when tones 1,2 stronger (LSB=1)
-            llr_b0 = max(s1, s2) - max(s0, s3);
+            % LSB: positive when tones 1,3 stronger (LSB=1)
+            llr_b0 = max(s1, s3) - max(s0, s2);
             % Interleave: [b1(1), b0(1), b1(2), b0(2), ...]
             rx_soft = zeros(2*Nsym_dec, 1);
             rx_soft(1:2:end) = llr_b1;

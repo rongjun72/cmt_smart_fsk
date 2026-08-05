@@ -26,7 +26,7 @@ sps_rx = fs_rx*Tsym;         % RX samples per symbol
 timeBwProduct = 0.50;%0.50;  % Bandwidth-time product
 h = 0.5;                     % Modulation index, h = F_dev*Tsym = F_dev/SymbRate
 F_dev = h/Tsym;              % Max frequency deviation (Hz)
-Nsym_total = 200*2000*5;    % Number of transmitted symbols
+Nsym_total = 200*2000*100;    % Number of transmitted symbols
 Nsym_segment = 2000*40;
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
