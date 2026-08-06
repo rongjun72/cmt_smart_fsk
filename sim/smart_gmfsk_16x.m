@@ -98,8 +98,11 @@ end
 FI = fimath('ProductMode','FullPrecision','SumMode','FullPrecision',...
             'RoundingMethod','Round','OverflowAction','Saturate');
 %%
-Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
+Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);
+Demod_method = Demod_method_list{3};
+%% filter series delay
+[filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
 EbNo_len = length(EbNo_dB);
 [BER_rot, BER_est, error_count, bits_count] = ber_state_init(filename_res,Demod_method_list,EbNo_dB,'newFile');
 %%BER theory  co FSK: 1/2*erfc(sqrt(Eb/No)/2) = 1/2*erfc(sqrt(r)/2),r=Eb/No
@@ -112,10 +115,7 @@ ui_proc = uitable(fd_proc,'Data',[zeros(EbNo_len,1) EbNo_dB' BER_est'],'ColumnNa
     'Units','normalized','Position',[0.01 0.05 0.95 0.9],'FontSize',10);
 ui_proc.ColumnFormat = {'numeric','bank','short e','short e','short e','short e'};
 tatart0 = tic;
-for idx_method = 3:(N_method-1)
-    Demod_method = Demod_method_list{idx_method};
-    %% filter series delay
-    [filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
+for idx_method = 3:N_method
     ref_metric = ref_metric_gen(1000,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
     for idx_EbNo = 1:EbNo_len
         reset_filter_objs(FLT);

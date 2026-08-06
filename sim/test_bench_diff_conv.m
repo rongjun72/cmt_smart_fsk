@@ -26,7 +26,7 @@ sps_rx = fs_rx*Tsym;         % RX samples per symbol
 timeBwProduct = 0.50;%0.50;  % Bandwidth-time product
 h = 0.5;                     % Modulation index, h = F_dev*Tsym = F_dev/SymbRate
 F_dev = h/Tsym;              % Max frequency deviation (Hz)
-Nsym_total = 200*2000*50;    % Number of transmitted symbols
+Nsym_total = 200*2000*100;    % Number of transmitted symbols
 Nsym_segment = 2000*40;
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
@@ -43,8 +43,11 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on MUST be 1 inthis test
 INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
 PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
-Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
+Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);   EbNo_len = length(EbNo_dB);
+Demod_method = Demod_method_list{3};
+%% filter series delay
+[filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
 %%BER theory  co FSK: 1/2*erfc(sqrt(Eb/No)/2) = 1/2*erfc(sqrt(r)/2),r=Eb/No
 BER_theory_coh = berawgn(EbNo_dB,'fsk',2,'coherent');
 BER_theory_ncoh = berawgn(EbNo_dB,'fsk',2,'noncoherent');
@@ -85,10 +88,7 @@ for idx_tb = 1:N_testbech
     [BER_est,error_count,bits_count] = deal(zeros(N_method,EbNo_len));
     BER_est(1,:) = BER_theory_coh; BER_est(2,:) = BER_theory_ncoh;
     [fd_proc,ui_proc] = create_ber_table(EbNo_len,EbNo_dB,BER_est,Demod_method_list);
-    for idx_method = 3:(N_method-1)
-        Demod_method = Demod_method_list{idx_method};
-        %% filter series delay
-        [filt_dly] = sgmfsk_filter_series(BW,fs,BR,fs_rx,timeBwProduct,q_span,sps,F_dev);
+    for idx_method = 3:N_method
         ref_metric = ref_metric_gen(1000,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
         for idx_EbNo = 1:EbNo_len
             reset_filter_objs(FLT);
