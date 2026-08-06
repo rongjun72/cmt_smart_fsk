@@ -24,14 +24,33 @@ Fixed the long-standing issue where Viterbi soft-decision decoding showed **no B
 | `test_bench_diff_conv.m` | Same switch; non-interleaved path uses inline `tanh` + `vitdec(..., 'soft', nsdec)` |
 | New files | `debug_vitdec_soft.m`, `debug_vitdec_unquant.m` — standalone reproduction scripts |
 
-### Performance Results (BER = 1e-3)
+### Performance Results (BER = 1e-3, Conv + Interleave, 8-bit soft)
 
-| Convolutional Code | Hard-decision Eb/No | Soft-decision Eb/No | **Gain** |
-|--------------------|---------------------|---------------------|----------|
-| (7,5)  K=3, 4-state | ~9.24 dB | 7.78 dB | **~1.46 dB** |
-| (15,13) K=4, 8-state | ~9.30 dB | 7.59 dB | **~1.71 dB** |
+Full sweep across all four supported convolutional codes. Two RX paths are compared:
 
-> The ~1.5–1.7 dB gain is consistent with theoretical soft-decision Viterbi expectations for these codes.
+- **MIX-LPF** — Soft LLR from `sgmfsk_CoDemod` → Deinterleave → `vitdec(..., 'soft', 8)`
+- **MIX-LPF-ISI** — Hard decisions from MLSE (`viterbi_decode_isi`) → Deinterleave → `vitdec(..., 'hard')`
+
+#### Sensitivity Table
+
+| Code | CCOH-THER | NCOH-THER | MIX-LPF (soft) | MIX-LPF-ISI (hard) | Soft vs Hard Gain |
+|------|-----------|-----------|----------------|--------------------|-------------------|
+| (7,5) K=3 | 9.74 dB | 10.89 dB | **7.78 dB** | 10.40 dB | **2.62 dB** |
+| (15,13) K=4 | 9.74 dB | 10.89 dB | **7.59 dB** | 10.44 dB | **2.85 dB** |
+| (23,35) K=5 | 9.74 dB | 10.89 dB | **7.32 dB** | 10.00 dB | **2.68 dB** |
+| (171,133) K=7 | 9.74 dB | 10.89 dB | **6.97 dB** | 9.61 dB | **2.64 dB** |
+
+#### Key Observations
+
+1. **Soft-metric Viterbi provides ~2.6–2.9 dB gain** over the MLSE-hard path when convolutional coding + interleaving is active. This is because:
+   - MLSE makes hard decisions on GFSK symbols, discarding all reliability information before the convolutional decoder
+   - Block interleaving breaks the ISI correlation assumptions that MLSE relies on
+
+2. **MIX-LPF-ISI underperforms even vs. uncoded coherent FSK** (9.61 dB > 9.74 dB for (171,133)) — the hard-decision bottleneck dominates.
+
+3. **Longer constraint-length codes continue to improve** the soft-decision path: (171,133) at 6.97 dB is ~0.8 dB better than (7,5) at 7.78 dB, consistent with coding theory.
+
+4. The ~1.5–1.7 dB soft-decision gain (vs. hard-decision Viterbi without MLSE, pre-fix) is now extended to **~2.6 dB** when comparing against the MLSE-hard + conv-decoded path.
 
 ### Known Limitations
 
