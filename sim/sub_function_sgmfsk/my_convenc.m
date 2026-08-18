@@ -14,9 +14,9 @@ function encoded = my_convenc(info_bits, trellis)
     info_bits = info_bits(:);
     nInfoBits = length(info_bits);
 
-    numStates = trellis.numStates;
-    numInputs = trellis.numInputs;      % should be 2 for binary
-    numOutputs = trellis.numOutputs;    % 2^n for n output bits
+    numStates = size(trellis.nextStates, 1);
+    numInputs = size(trellis.nextStates, 2);      % should be 2 for binary
+    numOutputs = max(trellis.outputs(:)) + 1;       % 2^n for n output bits
     nOutputBits = round(log2(numOutputs));
 
     % Determine constraint length K from numStates

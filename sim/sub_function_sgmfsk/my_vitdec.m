@@ -45,9 +45,9 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
         error('my_vitdec: only ''trunc'' and ''term'' modes are supported');
     end
 
-    numStates = trellis.numStates;
-    numInputs = trellis.numInputs;
-    numOutputs = trellis.numOutputs;
+    numStates = size(trellis.nextStates, 1);
+    numInputs = size(trellis.nextStates, 2);
+    numOutputs = max(trellis.outputs(:)) + 1;
     nOutputBits = round(log2(numOutputs));
     K = round(log2(numStates)) + 1;
 
