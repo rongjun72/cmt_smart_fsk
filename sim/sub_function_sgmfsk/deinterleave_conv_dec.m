@@ -56,15 +56,15 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
         deinterleaved_q = round((tanh(deinterleaved) + 1) * (2^nsdec - 1) / 2);
         deinterleaved_q = max(0, min(2^nsdec - 1, deinterleaved_q));
         if ~isempty(puncvec)
-            info_bits_est = vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
+            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
         else
-            info_bits_est = vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec);
+            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec);
         end
     else
         if ~isempty(puncvec)
-            info_bits_est = vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type, puncvec);
+            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type, puncvec);
         else
-            info_bits_est = vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type);
+            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type);
         end
     end
 end

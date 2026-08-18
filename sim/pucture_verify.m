@@ -31,7 +31,8 @@ for c = 1:length(codes)
         data = randi([0 1], 1, numSymbols);
         
         % 卷积编码 + 打孔
-        encoded = convenc(data, trellis, puncvec_4_5);
+        encoded = my_convenc(data(:), trellis);
+        encoded = puncture_bits(encoded, puncvec_4_5);
         
         % BPSK 调制（简化，避免 QPSK 复数处理）
         tx = 1 - 2*encoded;  % 0->+1, 1->-1
@@ -49,7 +50,7 @@ for c = 1:length(codes)
         
         % Viterbi 译码
         tbdepth = 5*K;  % 截断深度 = 5*K 是经验值
-        decoded = vitdec(rxBits, trellis, tbdepth, 'term', 'hard', puncvec_4_5);
+        decoded = my_vitdec(rxBits, trellis, tbdepth, 'trunc', 'hard', puncvec_4_5);
         
         % 计算 BER（去掉尾比特）
         len = min(length(data), length(decoded));

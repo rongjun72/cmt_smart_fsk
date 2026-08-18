@@ -139,7 +139,7 @@ for idx_method = 3:N_method
                 if CONV_EN
                     % Generate info bits -> conv encode -> block interleave -> feed to modulator
                     tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
-                    tx_encoded = convenc(tx_bits(idx_symb,:)', trellis);
+                    tx_encoded = my_convenc(tx_bits(idx_symb,:)', trellis);
                     if INTERLEAVE_EN
                         [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis);
                     else
@@ -174,8 +174,8 @@ for idx_method = 3:N_method
                         rx_info = deinterleave_conv_dec(rx_bits, trellis, Nrow_int, Ncol_int, tblen);
                         rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen);
                     else
-                        rx_info = vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
-                        rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                        rx_info = my_vitdec(rx_bits(:), trellis, tblen, 'trunc', 'hard');
+                        rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
                     end
                     [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info(Nst_info:Ncmp_info));
                     [err_cnt_mlse,bit_cnt_mlse,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info_mlse(Nst_info:Ncmp_info));

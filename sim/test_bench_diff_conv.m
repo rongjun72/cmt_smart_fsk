@@ -98,7 +98,7 @@ for idx_tb = 1:N_testbech
                     %% Gfsk generate()
                     % Generate info bits -> conv encode -> (puncture) -> block interleave -> feed to modulator
                     tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
-                    tx_encoded = convenc(tx_bits(idx_symb,:)', trellis);
+                    tx_encoded = my_convenc(tx_bits(idx_symb,:)', trellis);
                     if INTERLEAVE_EN
                         [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis, [], [], puncvec);
                     else
@@ -133,11 +133,11 @@ for idx_tb = 1:N_testbech
                         rx_soft_q = round((tanh(rx_soft) + 1) * (2^nsdec - 1) / 2);
                         rx_soft_q = max(0, min(2^nsdec - 1, rx_soft_q));
                         if ~isempty(puncvec)
-                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
-                            rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
+                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
+                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
                         else
-                            rx_info = vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec);
-                            rx_info_mlse = vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec);
+                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
                         end
                     end
                     [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info(Nst_info:Ncmp_info));

@@ -7,13 +7,13 @@ for i = 1:3
     tblen = 5*K(i);
     % 1/2 rate, info bits = 1e5
     tx = randi([0 1], 1, 1e7);
-    tx_enc = convenc(tx, trellis);
+    tx_enc = my_convenc(tx(:), trellis);
     % BPSK modulation + AWGN
     tx_mod = 2*tx_enc - 1;
     for idx = 1:length(EbNo_dB)
         rx = awgn(tx_mod, EbNo_dB(idx) - 10*log10(0.5), 'measured');
         rx_bits = (rx > 0)';
-        rx_dec = vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
+        rx_dec = my_vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
         ber(i, idx) = mean(tx(1:end) ~= rx_dec(1:end)');
     end
 end

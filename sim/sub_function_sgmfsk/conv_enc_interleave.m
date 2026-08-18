@@ -17,8 +17,8 @@ function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_b
         puncvec = [];
     end
 
-    %% 1. Convolutional encoding
-    encoded = convenc(info_bits(:), trellis);
+    %% 1. Convolutional encoding (pure MATLAB implementation)
+    encoded = my_convenc(info_bits(:), trellis);
 
     %% 2. Puncturing (optional)
     if ~isempty(puncvec)
