@@ -42,8 +42,8 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 %% Convolutional encoding + interleaving parameters
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on MUST be 1 inthis test
 INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
-PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
-Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
+PUNCTURE_EN = 1;    % Puncturing enable: 0=off (1/2 rate), 1=on
+Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);   EbNo_len = length(EbNo_dB);
 Demod_method = Demod_method_list{3};
 %% filter series delay
@@ -71,24 +71,15 @@ for idx_tb = 1:N_testbech
         otherwise
             error('Unsupported convolutional code type: %s', conv_code_type);
     end
-    
-    % Puncture pattern selection (mother code rate 1/2)
-    if PUNCTURE_EN
-        % puncvec = [1 1 1 0];       % 2/3 code rate (period 4, keep 3/4)
-        puncvec = [1 1 1 0 0 1];   % 3/4 code rate (period 6, keep 4/6)
-        code_rate = 1/2 * length(puncvec) / sum(puncvec);
-    else
-        puncvec = [];
-        code_rate = 1/2;
-    end
     trellis = poly2trellis(K_conv, gen_poly); tblen = 5*K_conv;   % Viterbi traceback length
     bits_per_frame = Nsym_segment;  % Info bits per frame (encoded = Nsym*2, matched to modulator)
+    [puncvec,code_rate,rate_str] = puncture_config("5/8",1/2); % 3/4 coderate puncture
     BR_eff = BR * code_rate;        % Info bit rate for Eb/No calculation
     
     [BER_est,error_count,bits_count] = deal(zeros(N_method,EbNo_len));
     BER_est(1,:) = BER_theory_coh; BER_est(2,:) = BER_theory_ncoh;
     [fd_proc,ui_proc] = create_ber_table(EbNo_len,EbNo_dB,BER_est,Demod_method_list);
-    for idx_method = 3:N_method
+    for idx_method = 3:(N_method-1)
         ref_metric = ref_metric_gen(1000,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
         for idx_EbNo = 1:EbNo_len
             reset_filter_objs(FLT);
@@ -204,17 +195,12 @@ for idx_tb = 1:N_testbech
     grid on;
     xlabel('E_b/N_0 (dB)','Interpreter','none');
     ylabel('BER_est','Interpreter','none');
-    if PUNCTURE_EN
-        rate_str = sprintf(', R=%g', code_rate);
-    else
-        rate_str = '';
-    end
     if INTERLEAVE_EN
         codec_str = sprintf('%s Conv+Interleave%s', conv_code_type, rate_str);
     else
             codec_str = sprintf('%s Conv%s', conv_code_type, rate_str);
     end
-    title(sprintf('BER curve: fs_rx = %2.1fKSpS, %s', fs_rx/1000, codec_str));
+    title(sprintf('BER curve: %s', codec_str));
     ylim([1e-7 1e0]);xlim([min(EbNo_dB) max(EbNo_dB)]);
     text(0.2,1e-3,sprintf('BT=%.1f, h=%.1f, chFilt:[%.0f,%.0f]Hz',timeBwProduct,h,chFiltFreq*BW_fsk));
     text(0.2,5e-4,sprintf('LPF fc: %dHz(chebwin,Nrd=36)',MIX_LPF_Fc*F_dev));
@@ -224,8 +210,8 @@ for idx_tb = 1:N_testbech
 end %idx_tb = 1:N_testbech
 %% Plotting
 legend_str = cellstr(["ref0","ref1",string(tb_conv)]);
-semilogy_curves(EbNo_dB,BER_est,BER_tb,3,[1e-6 1e0],legend_str);
-semilogy_curves(EbNo_dB,BER_est,BER_tb,4,[1e-6 1e0],legend_str);
+semilogy_curves(EbNo_dB,BER_est,BER_tb,3,[1e-6 1e0],legend_str,"soft-conv");
+semilogy_curves(EbNo_dB,BER_est,BER_tb,4,[1e-6 1e0],legend_str,"isi-hard");
 disp('end');
 
 
@@ -238,7 +224,7 @@ function [fd_proc,ui_proc] = create_ber_table(EbNo_len,EbNo_dB,BER_est,Demod_met
     ui_proc.ColumnFormat = {'numeric','bank','short e','short e','short e','short e'};
 end
 
-function [fd] = semilogy_curves(EbNo_dB,BER_est,BER_tb,idx_method,y_range,legend_str)
+function [fd] = semilogy_curves(EbNo_dB,BER_est,BER_tb,idx_method,y_range,legend_str,tit_str)
     % BER_tb should be 3-dimension array. 1-dim:tb,2-dim:method,3-dim:EbNo
     fd = figure;
     N_testbech = size(BER_tb,1);
@@ -250,9 +236,46 @@ function [fd] = semilogy_curves(EbNo_dB,BER_est,BER_tb,idx_method,y_range,legend
     end
     grid on;
     xlabel('E_b/N_0 (dB)','Interpreter','none'); ylabel('BER','Interpreter','none');
-    title(sprintf('BER curve: fs_rx = %2.1fKSpS, %s', 16000/1000));
+    title(sprintf('BER curves: %s', tit_str));
     ylim(y_range);
     legend(legend_str,'Location','southwest');
+end
+
+function [puncvec,code_rate,rate_str] = puncture_config(PUNCTURE,codrate_raw)
+    % PUNCTURE: 'n/m' means for m-bit code puncture (m-n)bits 
+    % for convolation code (7,5),(15,13),(23,35),(171,133).
+    % Puncture pattern selection (mother code rate 1/2)
+    % | targetcode rate | puncvec                   | puncture  |
+    % | :---    | :-------------------------------- |:--------- |
+    % | 2/3     | [1 1 1 0]                         | keep 3/4  |
+    % | 3/4     | [1 1 0 1 0 1]                     | keep 4/6  |
+    % | 4/5     | [1 1 0 1 0 1 0 1]                 | keep 5/8  |
+    % | 5/6     | [1 1 0 1 0 1 0 1 0 1]             | keep 6/10 |
+    % | 6/7     | [1 1 0 1 0 1 0 1 0 1 0 1]         | keep 7/12 |
+    % | 7/8     | [1 1 0 1 0 1 0 1 0 1 0 1 0 1]     | keep 8/14 |
+    % | 8/9     | [1 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1] | keep 9/16 |
+    switch PUNCTURE
+        case '2/2'
+            puncvec = [];                                % puncture disabled
+        case '3/4'
+            puncvec = [1 1 1 0];                         % 2/3 code rate (period 4, keep 3/4)
+        case '4/6'
+            puncvec = [1 1 0 1 0 1];                     % 3/4 code rate (period 6, keep 4/6)
+        case '5/8'
+            puncvec = [1 1 0 1 0 1 0 1];                 % 4/5 code rate (period 6, keep 5/8)
+        case '6/10'
+            puncvec = [1 1 0 1 0 1 0 1 0 1];             % 5/6 code rate (period 8, keep 6/10)
+        case '7/12'
+            puncvec = [1 1 0 1 0 1 0 1 0 1 0 1];         % 6/7 code rate (period 10, keep 7/12)
+        case '8/14'
+            puncvec = [1 1 0 1 0 1 0 1 0 1 0 1 0 1];     % 7/8 code rate (period 14, keep 8/14)
+        case '9/16'
+            puncvec = [1 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1]; % 8/9 code rate (period 16, keep 9/16)
+        otherwise
+            error('Unsupported puncture type: %s', PUNCTURE);
+    end
+    code_rate = codrate_raw / double(str2sym(PUNCTURE)) ;
+    rate_str = ''; if code_rate~=1; rate_str = sprintf(', R=%g', code_rate); end
 end
 
 function reset_filter_objs(filter_array)

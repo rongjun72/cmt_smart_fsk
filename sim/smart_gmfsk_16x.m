@@ -7,12 +7,8 @@ global FLT Samp_IDET Mfsk ref_metric; % global filter object array
 global DEBUG BYPASS_DEC Demod_method last_pm;
 global N_32M_start N_4K_start last_rx_phase last_tx_phase last_iq;
 %% DEBUG enable
-DEBUG = 0;
-fig_num = 1;
-filter_type = 0;
-NOISE_EN = 1;%1;
-CORDIC_EN = 0;
-BYPASS_DEC = 1;
+DEBUG = 0;      fig_num = 1;    filter_type = 0;
+NOISE_EN = 1;   CORDIC_EN = 0;  BYPASS_DEC = 1;
 %% System parameters
 Mfsk = 4;
 Mlog2 = log2(Mfsk);
@@ -22,9 +18,8 @@ fs = 32e6;%%32e6;            % Sampling rate (Hz)
 sps = 16;                    % TX samples per symbol
 fs_tx = sps*(BR/Mlog2);      % TX symbol sampling rate
 BW = 1/Tsym;                 % TX bandwidth
-% fs_rx = fs_tx;             % RX sampling rate
 q_span = 4;
-fs_rx = sps*BW;%fs_tx*BW;     % RX sampling rate
+fs_rx = sps*BW;%fs_tx*BW;    % RX sampling rate
 Flo = 500e3;%%500e3;         % Intermediate frequency (Hz)
 f_rf = 433.92e6;             % Carrier frequency (Hz)
 sps_rx = fs_rx*Tsym;         % RX samples per symbol
@@ -32,12 +27,8 @@ timeBwProduct = 0.50;%0.50;  % Bandwidth-time product
 % timeBwProduct = BW*Tsym;   % Bandwidth-time product
 h = 0.5;                     % Modulation index, h = F_dev*Tsym = F_dev/SymbRate
 F_dev = h/Tsym;              % Max frequency deviation (Hz)
-% F_dev = 500Hz;
-% dev = 250e3;
-% F_dev = dev;
 Nsym_total = 200*2000*50; % Number of transmitted symbols
 Nsym_segment = 2000*40;
-%%EbNo_dB = 20*(1-2.^((0:1:-20)'));%% 0+(0:2:25);
 EbNo_dB = 0 + 16*log10(1:1.9:20)/log10(20);
 f_off_ppm = 0;%0.5e-6;%6;%20ppm
 f_off_hz = f_rf*f_off_ppm;
@@ -98,7 +89,7 @@ end
 FI = fimath('ProductMode','FullPrecision','SumMode','FullPrecision',...
             'RoundingMethod','Round','OverflowAction','Saturate');
 %%
-Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
+Demod_method_list = {"CCOH-THER","NCOH-THER","MIX-LPF","MIX-LPF-ISI"};%,"MIX-LPF"; % "MIX-LPF": "FREQ-DET"; "NCOH-REF";
 N_method = length(Demod_method_list);
 Demod_method = Demod_method_list{3};
 %% filter series delay
@@ -115,7 +106,7 @@ ui_proc = uitable(fd_proc,'Data',[zeros(EbNo_len,1) EbNo_dB' BER_est'],'ColumnNa
     'Units','normalized','Position',[0.01 0.05 0.95 0.9],'FontSize',10);
 ui_proc.ColumnFormat = {'numeric','bank','short e','short e','short e','short e'};
 tatart0 = tic;
-for idx_method = 3:N_method
+for idx_method = 3:(N_method-1)
     ref_metric = ref_metric_gen(1000,sps,fs,fs_tx,fs_rx,sps_rx,F_dev,Flo,filt_dly);
     for idx_EbNo = 1:EbNo_len
         reset_filter_objs(FLT);
