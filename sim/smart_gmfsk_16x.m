@@ -43,9 +43,9 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 %% Convolutional encoding + interleaving parameters
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on
 INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
-PUNCTURE_EN = 1;    % Puncturing enable: 0=off (1/2 rate), 1=on
+PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
 % Convolutional code type selection: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
-conv_code_type = '(171,133)';
+conv_code_type = '(7,5)';
 
 switch conv_code_type
     case '(7,5)'

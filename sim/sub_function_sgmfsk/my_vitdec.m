@@ -12,7 +12,7 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 %     rx_bits       - Received encoded bits (0/1 for hard, 0..2^nsdec-1 for soft)
 %     trellis       - Trellis structure from poly2trellis
 %     tblen         - Traceback length (symbols, i.e., input symbol periods)
-%     mode          - Only 'trunc' supported
+%     mode          - 'trunc' or 'term'
 %     decision_type - 'hard' or 'soft'
 %     varargin{1}   - nsdec (for soft) or puncvec (for hard with puncture)
 %     varargin{2}   - puncvec (optional)
@@ -53,7 +53,7 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
     rx_bits = rx_bits(:);
 
-    %% Depuncturing (insert erasures where bits were punctured)
+    %% Depuncturing (insert erasures where bits were punctured out)
     if ~isempty(puncvec)
         rx_bits = my_depuncture(rx_bits, puncvec, decision_type, nsdec);
     end
@@ -61,18 +61,20 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
     % Length check: rx_bits should be a multiple of nOutputBits
     nRxSymbols = length(rx_bits) / nOutputBits;
     if mod(length(rx_bits), nOutputBits) ~= 0
-        error('my_vitdec: rx_bits length must be a multiple of nOutputBits (%d)', nOutputBits);
+        error('my_vitdec: rx_bits length (%d) must be a multiple of nOutputBits (%d)', length(rx_bits), nOutputBits);
     end
 
     % Reshape into symbols (each column is one received symbol vector)
     rx_sym = reshape(rx_bits, nOutputBits, nRxSymbols);
 
     %% Pre-compute output bit patterns for all (state, input) pairs
+    % output_bits(:, s, u) = column vector of bits for state s-1, input u-1
     output_bits = zeros(nOutputBits, numStates, numInputs);
     for s = 1:numStates
         for u = 1:numInputs
             sym = trellis.outputs(s, u);
             for b = 1:nOutputBits
+                % MSB first: bit nOutputBits corresponds to first generator poly
                 output_bits(b, s, u) = bitget(sym, nOutputBits - b + 1);
             end
         end
@@ -84,14 +86,16 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
     pathMetric(:, 1) = INF;
     pathMetric(1, 1) = 0;  % Start from state 0
 
-    survivor = zeros(numStates, nRxSymbols);  % Store best input (0 or 1) for each state at each time
+    % survivor(next_s, t) stores the BEST PREVIOUS STATE (0-indexed) that
+    % leads to state next_s-1 at time t.
+    survivor = zeros(numStates, nRxSymbols);
 
     for t = 1:nRxSymbols
         rx_vec = rx_sym(:, t);
 
         for next_s = 1:numStates
             best_pm = INF;
-            best_in = 0;
+            best_prev = 0;
 
             for prev_s = 1:numStates
                 for u = 1:numInputs
@@ -112,30 +116,33 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
                         if pm < best_pm
                             best_pm = pm;
-                            best_in = u - 1;  % Convert to 0/1
+                            best_prev = prev_s - 1;  % 0-indexed previous state
                         end
                     end
                 end
             end
 
             pathMetric(next_s, t + 1) = best_pm;
-            survivor(next_s, t) = best_in;
+            survivor(next_s, t) = best_prev;
         end
     end
 
-    %% Traceback (truncation mode: start from state 0 at the end)
+    %% Traceback (truncation/term mode: start from state 0 at the end)
     decoded = zeros(nRxSymbols, 1);
     state = 0;  % End at state 0
 
     for t = nRxSymbols:-1:1
-        decoded(t) = survivor(state + 1, t);
-        % Find previous state that leads to current state with this input
-        for prev_s = 1:numStates
-            if trellis.nextStates(prev_s, decoded(t) + 1) == state
-                state = prev_s - 1;
+        prev_state = survivor(state + 1, t);
+
+        % Derive input from (prev_state, state) transition
+        for u = 1:numInputs
+            if trellis.nextStates(prev_state + 1, u) == state
+                decoded(t) = u - 1;
                 break;
             end
         end
+
+        state = prev_state;
     end
 
     %% Remove tail bits (last K-1 decoded bits are zero tail bits)
@@ -174,7 +181,6 @@ function rx_depunc = my_depuncture(rx_bits, puncvec, decision_type, nsdec)
 
     for per = 1:nPeriods
         period_out = zeros(p, 1);
-        pidx = 1;
         for b = 1:p
             if puncvec(b) == 1
                 period_out(b) = rx_bits(idx);
@@ -186,12 +192,8 @@ function rx_depunc = my_depuncture(rx_bits, puncvec, decision_type, nsdec)
         rx_depunc = [rx_depunc; period_out];
     end
 
-    % Handle remainder
+    % Handle remainder: only insert as many bits as actually received
     if remainder > 0
-        rem_mask = puncvec(1:remainder);
-        % Figure out how many punctured positions in the partial period
-        nPuncInPartial = sum(puncvec) - remainder;  % This isn't quite right
-        % Actually, we need to align to the start of a period
         period_out = zeros(p, 1);
         for b = 1:p
             if puncvec(b) == 1
