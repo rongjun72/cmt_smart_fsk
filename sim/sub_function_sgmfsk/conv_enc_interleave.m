@@ -1,4 +1,4 @@
-function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_bits, trellis, Nrow, Ncol, puncvec)
+function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_bits, trellis, Nrow, Ncol, puncvec, Build_in)
 %CONV_ENC_INTERLEAVE Convolutional encoding + (optional puncturing) + block interleaving
 %   Perform convolutional encoding on input info bits, optional puncturing, then block interleaving.
 %
@@ -7,6 +7,7 @@ function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_b
 %     trellis   - Convolutional code trellis structure
 %     Nrow, Ncol - Interleaver row/column count (optional). Auto-selected if omitted
 %     puncvec   - Puncture vector (optional). Punctures after encoding if provided
+%     Build_in  - Optional: 0 = use custom my_convenc (default), 1 = use built-in convenc
 %
 %   Output:
 %     encoded_interleaved - Encoded (punctured) and interleaved bit sequence
@@ -16,9 +17,12 @@ function [encoded_interleaved, Nrow, Ncol, puncvec] = conv_enc_interleave(info_b
     if nargin < 5
         puncvec = [];
     end
+    if nargin < 6 || isempty(Build_in)
+        Build_in = 0;
+    end
 
-    %% 1. Convolutional encoding (pure MATLAB implementation)
-    encoded = my_convenc(info_bits(:), trellis);
+    %% 1. Convolutional encoding
+    encoded = my_convenc(info_bits(:), trellis, Build_in);
 
     %% 2. Puncturing (optional)
     if ~isempty(puncvec)

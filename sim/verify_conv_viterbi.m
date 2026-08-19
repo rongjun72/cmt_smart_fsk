@@ -117,7 +117,6 @@ function verify_conv_viterbi()
         match_term = isequal(dec_builtin_term(:), dec_custom_term(:));
         ber_builtin_t = mean(tx_term(:) ~= dec_builtin_term(:));
         ber_custom_t  = mean(tx_term(:) ~= dec_custom_term(:));
-        ber_custom_t  = mean(tx(:) ~= dec_custom_term(:));
         fprintf('  vitdec term match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
             string(match_term), ber_builtin_t, ber_custom_t);
         if ~match_term

@@ -1,7 +1,6 @@
-function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow, Ncol, tblen, puncvec, decision_type, nsdec)
+function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow, Ncol, tblen, puncvec, decision_type, nsdec, Build_in)
 %DEINTERLEAVE_CONV_DEC Deinterleaving + (optional depuncturing) + Viterbi decoding
 %   Block-deinterleave the received encoded bit sequence, then Viterbi decode.
-%   Supports hard-decision, unquantized, and soft (quantized) Viterbi decoding.
 %
 %   Input:
 %     rx_encoded_bits - Received encoded bit sequence (0/1 for hard, real values for soft/unquant)
@@ -11,6 +10,7 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
 %     puncvec         - Puncture vector (optional). Same as encoder side
 %     decision_type   - 'hard' | 'soft' | 'unquant' (optional, default 'hard')
 %     nsdec           - Soft-decision quantization bits for 'soft' mode (optional, default 8)
+%     Build_in        - Optional: 0 = use custom my_vitdec (default), 1 = use built-in vitdec
 %
 %   Output:
 %     info_bits_est   - Decoded info bits (column vector)
@@ -20,6 +20,9 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
     end
     if nargin < 8 || isempty(nsdec)
         nsdec = 8;
+    end
+    if nargin < 9 || isempty(Build_in)
+        Build_in = 0;
     end
     if nargin < 6
         puncvec = [];
@@ -51,20 +54,18 @@ function [info_bits_est] = deinterleave_conv_dec(rx_encoded_bits, trellis, Nrow,
     end
 
     if strcmp(decision_type, 'soft')
-        % Quantize float LLR to integer soft metric for vitdec('soft')
-        % Map: LLR<0 -> 0..127 (confidence in 0), LLR>0 -> 128..255 (confidence in 1)
         deinterleaved_q = round((tanh(deinterleaved) + 1) * (2^nsdec - 1) / 2);
         deinterleaved_q = max(0, min(2^nsdec - 1, deinterleaved_q));
         if ~isempty(puncvec)
-            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
+            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec, puncvec, Build_in);
         else
-            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec);
+            info_bits_est = my_vitdec(deinterleaved_q, trellis, tblen, 'trunc', 'soft', nsdec, Build_in);
         end
     else
         if ~isempty(puncvec)
-            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type, puncvec);
+            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type, puncvec, Build_in);
         else
-            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type);
+            info_bits_est = my_vitdec(deinterleaved, trellis, tblen, 'trunc', decision_type, Build_in);
         end
     end
 end

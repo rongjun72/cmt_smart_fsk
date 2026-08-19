@@ -44,9 +44,9 @@ RX_BIN_MIX = [1550 500 -500 -1550]; % 4GFSK mixer frequencies, actualtone freque
 CONV_EN = 1;        % Convolutional encoding enable: 0=off, 1=on
 INTERLEAVE_EN = 1;  % Block interleaving enable: 0=off, 1=on
 PUNCTURE_EN = 0;    % Puncturing enable: 0=off (1/2 rate), 1=on
+BUILD_IN = 0;       % Use built-in convenc/vitdec: 0=custom (default), 1=MATLAB built-in
 % Convolutional code type selection: '(7,5)' | '(15,13)' | '(23,35)' | '(171,133)'
 conv_code_type = '(7,5)';
-
 switch conv_code_type
     case '(7,5)'
         K_conv = 3;         % Constraint length
@@ -140,9 +140,9 @@ for idx_method = 3:(N_method-1)
                 if CONV_EN
                     % Generate info bits -> conv encode -> (puncture) -> block interleave -> feed to modulator
                     tx_bits(idx_symb,:) = randi([0 1], 1, bits_per_frame);
-                    tx_encoded = my_convenc(tx_bits(idx_symb,:)', trellis);
+                    tx_encoded = my_convenc(tx_bits(idx_symb,:)', trellis, BUILD_IN);
                     if INTERLEAVE_EN
-                        [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis, [], [], puncvec);
+                        [tx_bits_send, Nrow_int, Ncol_int] = conv_enc_interleave(tx_bits(idx_symb,:)', trellis, [], [], puncvec, BUILD_IN);
                     else
                         tx_bits_send = puncture_bits(tx_encoded, puncvec);
                     end
@@ -173,17 +173,17 @@ for idx_method = 3:(N_method-1)
                     Ncmp_info = bits_per_frame - sym_tail_skip;
                     nsdec = 8;
                     if INTERLEAVE_EN
-                        rx_info = deinterleave_conv_dec(rx_soft, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'soft', nsdec);
-                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'hard');
+                        rx_info = deinterleave_conv_dec(rx_soft, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'soft', nsdec, BUILD_IN);
+                        rx_info_mlse = deinterleave_conv_dec(rx_bits_mlse, trellis, Nrow_int, Ncol_int, tblen, puncvec, 'hard', [], BUILD_IN);
                     else
                         rx_soft_q = round((tanh(rx_soft) + 1) * (2^nsdec - 1) / 2);
                         rx_soft_q = max(0, min(2^nsdec - 1, rx_soft_q));
                         if ~isempty(puncvec)
-                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec);
-                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec);
+                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, puncvec, BUILD_IN);
+                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', puncvec, BUILD_IN);
                         else
-                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec);
-                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard');
+                            rx_info = my_vitdec(rx_soft_q(:), trellis, tblen, 'trunc', 'soft', nsdec, BUILD_IN);
+                            rx_info_mlse = my_vitdec(rx_bits_mlse(:), trellis, tblen, 'trunc', 'hard', BUILD_IN);
                         end
                     end
                     [err_cnt,bit_cnt,~] = error_stat(tx_bits(idx_symb-1,Nst_info:Ncmp_info)', rx_info(Nst_info:Ncmp_info));

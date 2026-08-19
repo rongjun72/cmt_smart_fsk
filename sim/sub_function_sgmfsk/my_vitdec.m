@@ -25,6 +25,21 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
         error('my_vitdec: requires at least 5 arguments');
     end
 
+    % Check if last varargin element is Build_in flag (0 or 1)
+    Build_in = 0;
+    if ~isempty(varargin)
+        last_arg = varargin{end};
+        if isnumeric(last_arg) && isscalar(last_arg) && ismember(last_arg, [0, 1])
+            Build_in = last_arg;
+            varargin = varargin(1:end-1);
+        end
+    end
+
+    if Build_in
+        decoded = vitdec(rx_bits, trellis, tblen, mode, decision_type, varargin{:});
+        return;
+    end
+
     puncvec = [];
     nsdec = 8;
 

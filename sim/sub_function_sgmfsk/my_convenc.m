@@ -1,4 +1,4 @@
-function encoded = my_convenc(info_bits, trellis)
+function encoded = my_convenc(info_bits, trellis, Build_in)
 %MY_CONVENC Convolutional encoder (pure MATLAB, replaces Communications Toolbox convenc)
 %   Encodes a binary sequence using the specified trellis structure.
 %   Matches MATLAB convenc behavior: NO tail bits are appended automatically.
@@ -7,9 +7,19 @@ function encoded = my_convenc(info_bits, trellis)
 %   Input:
 %     info_bits - Column vector of info bits (0 or 1)
 %     trellis   - Structure from poly2trellis with fields: nextStates, outputs
+%     Build_in  - Optional: 0 = use custom implementation (default), 1 = use built-in convenc
 %
 %   Output:
 %     encoded   - Column vector of encoded bits, length = length(info_bits) * n
+
+    if nargin < 3 || isempty(Build_in)
+        Build_in = 0;
+    end
+
+    if Build_in
+        encoded = convenc(info_bits, trellis);
+        return;
+    end
 
     info_bits = info_bits(:);
     nInfoBits = length(info_bits);
