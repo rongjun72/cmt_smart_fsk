@@ -127,9 +127,17 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
         end
     end
 
-    %% Traceback (truncation/term mode: start from state 0 at the end)
+    %% Traceback
     decoded = zeros(nRxSymbols, 1);
-    state = 0;  % End at state 0
+
+    if strcmp(mode, 'term')
+        % Terminated mode: encoder ended at state 0 (tail bits were appended)
+        state = 0;
+    else
+        % Truncation mode: start traceback from best final state
+        [~, bestState] = max(pathMetric(:, end));
+        state = bestState - 1;  % 0-indexed
+    end
 
     for t = nRxSymbols:-1:1
         prev_state = survivor(state + 1, t);
@@ -145,10 +153,12 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
         state = prev_state;
     end
 
-    %% Remove tail bits (last K-1 decoded bits are zero tail bits)
-    nTailBits = K - 1;
-    if length(decoded) > nTailBits
-        decoded = decoded(1:end - nTailBits);
+    %% Remove tail bits only for terminated mode
+    if strcmp(mode, 'term')
+        nTailBits = K - 1;
+        if length(decoded) > nTailBits
+            decoded = decoded(1:end - nTailBits);
+        end
     end
 end
 

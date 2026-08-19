@@ -21,7 +21,7 @@ function verify_conv_viterbi()
 
         fprintf('--- %s ---\n', code.name);
 
-        %% 1. Verify my_convenc against convenc
+        %% 1. Verify my_convenc against convenc (length and content)
         tx = randi([0 1], N, 1);
         enc_builtin = convenc(tx, trellis);
         enc_custom  = my_convenc(tx, trellis);
@@ -30,31 +30,35 @@ function verify_conv_viterbi()
         fprintf('  convenc match: %s (len: built-in=%d, custom=%d)\n', ...
             string(match_enc), length(enc_builtin), length(enc_custom));
         if ~match_enc
-            fprintf('  FIRST DIFF at index %d\n', find(enc_builtin ~= enc_custom, 1));
+            minlen = min(length(enc_builtin), length(enc_custom));
+            first_diff = find(enc_builtin(1:minlen) ~= enc_custom(1:minlen), 1);
+            fprintf('  FIRST DIFF at index %d\n', first_diff);
             fprintf('  built-in: %s\n', sprintf('%d', enc_builtin(1:20)'));
             fprintf('  custom:   %s\n', sprintf('%d', enc_custom(1:20)'));
         end
 
-        %% 2. Verify my_vitdec (hard) against vitdec (hard)
-        % BPSK AWGN channel
-        tx_mod = 1 - 2*enc_builtin;  % 0->+1, 1->-1
-        snr = 5;  % moderate SNR
-        rx = awgn(tx_mod, snr, 'measured');
-        rx_bits = rx < 0;
+        %% 2. Verify my_vitdec (hard) against vitdec (hard) - trunc mode
+        % BPSK modulation + AWGN
+        tx_mod = 2*enc_builtin - 1;
+        for idx = 1:1  % single SNR point for speed
+            rx = awgn(tx_mod, 5, 'measured');
+            rx_bits = (rx > 0)';
 
-        dec_builtin_hard = vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
-        dec_custom_hard  = my_vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
+            dec_builtin_hard = vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
+            dec_custom_hard  = my_vitdec(rx_bits, trellis, tblen, 'trunc', 'hard');
 
-        match_hard = isequal(dec_builtin_hard, dec_custom_hard);
-        ber_builtin = mean(tx(1:end) ~= dec_builtin_hard(1:end)');
-        ber_custom  = mean(tx(1:end) ~= dec_custom_hard(1:end)');
-        fprintf('  vitdec hard match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
-            string(match_hard), ber_builtin, ber_custom);
-        if ~match_hard
-            fprintf('  FIRST DIFF at index %d\n', find(dec_builtin_hard ~= dec_custom_hard, 1));
+            match_hard = isequal(dec_builtin_hard, dec_custom_hard);
+            ber_builtin = mean(tx(1:end) ~= dec_builtin_hard(1:end)');
+            ber_custom  = mean(tx(1:end) ~= dec_custom_hard(1:end)');
+            fprintf('  vitdec hard (trunc) match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
+                string(match_hard), ber_builtin, ber_custom);
+            if ~match_hard
+                first_d = find(dec_builtin_hard ~= dec_custom_hard, 1);
+                fprintf('  FIRST DIFF at index %d\n', first_d);
+            end
         end
 
-        %% 3. Verify my_vitdec (soft) against vitdec (soft)
+        %% 3. Verify my_vitdec (soft) against vitdec (soft) - trunc mode
         nsdec = 8;
         % Convert hard bits to soft metrics for fair comparison
         rx_soft = (rx_bits == 0) * 0 + (rx_bits == 1) * (2^nsdec - 1);
@@ -65,22 +69,23 @@ function verify_conv_viterbi()
         match_soft = isequal(dec_builtin_soft, dec_custom_soft);
         ber_builtin_s = mean(tx(1:end) ~= dec_builtin_soft(1:end)');
         ber_custom_s  = mean(tx(1:end) ~= dec_custom_soft(1:end)');
-        fprintf('  vitdec soft match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
+        fprintf('  vitdec soft (trunc) match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
             string(match_soft), ber_builtin_s, ber_custom_s);
         if ~match_soft
-            fprintf('  FIRST DIFF at index %d\n', find(dec_builtin_soft ~= dec_custom_soft, 1));
+            first_d = find(dec_builtin_soft ~= dec_custom_soft, 1);
+            fprintf('  FIRST DIFF at index %d\n', first_d);
         end
 
-        %% 4. Verify punctured path if applicable
+        %% 4. Verify punctured path - hard decision
         puncvec = [1 1 1 0 0 1];  % 3/4 rate
         enc_builtin_punc = convenc(tx, trellis);
         enc_builtin_punc = puncture_bits(enc_builtin_punc, puncvec);
         enc_custom_punc  = my_convenc(tx, trellis);
         enc_custom_punc  = puncture_bits(enc_custom_punc, puncvec);
 
-        % AWGN
+        % BPSK
         tx_mod_p = 1 - 2*enc_builtin_punc;
-        rx_p = awgn(tx_mod_p, snr, 'measured');
+        rx_p = awgn(tx_mod_p, 5, 'measured');
         rx_bits_p = rx_p < 0;
 
         dec_builtin_punc = vitdec(rx_bits_p, trellis, tblen, 'trunc', 'hard', puncvec);
@@ -92,7 +97,30 @@ function verify_conv_viterbi()
         fprintf('  vitdec punctured match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
             string(match_punc), ber_builtin_p, ber_custom_p);
         if ~match_punc
-            fprintf('  FIRST DIFF at index %d\n', find(dec_builtin_punc ~= dec_custom_punc, 1));
+            first_d = find(dec_builtin_punc ~= dec_custom_punc, 1);
+            fprintf('  FIRST DIFF at index %d\n', first_d);
+        end
+
+        %% 5. Verify terminated mode (term)
+        tx_term = [tx; zeros(code.K-1, 1)];  % Append tail bits for term mode
+        enc_builtin_term = convenc(tx_term, trellis);
+        enc_custom_term  = my_convenc(tx_term, trellis);
+
+        tx_mod_term = 1 - 2*enc_builtin_term;
+        rx_term = awgn(tx_mod_term, 5, 'measured');
+        rx_bits_term = rx_term < 0;
+
+        dec_builtin_term = vitdec(rx_bits_term, trellis, tblen, 'term', 'hard');
+        dec_custom_term  = my_vitdec(rx_bits_term, trellis, tblen, 'term', 'hard');
+
+        match_term = isequal(dec_builtin_term, dec_custom_term);
+        ber_builtin_t = mean(tx(1:end) ~= dec_builtin_term(1:end)');
+        ber_custom_t  = mean(tx(1:end) ~= dec_custom_term(1:end)');
+        fprintf('  vitdec term match: %s (BER: built-in=%.4f, custom=%.4f)\n', ...
+            string(match_term), ber_builtin_t, ber_custom_t);
+        if ~match_term
+            first_d = find(dec_builtin_term ~= dec_custom_term, 1);
+            fprintf('  FIRST DIFF at index %d\n', first_d);
         end
 
         fprintf('\n');
