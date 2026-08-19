@@ -11,7 +11,7 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 %   Inputs:
 %     rx_bits       - Received encoded bits (0/1 for hard, 0..2^nsdec-1 for soft)
 %     trellis       - Trellis structure from poly2trellis
-%     tblen         - Traceback length (symbols, i.e., input symbol periods)
+%     tblen         - Traceback length (symbols, i.e. input symbol periods)
 %     mode          - 'trunc' or 'term'
 %     decision_type - 'hard' or 'soft'
 %     varargin{1}   - nsdec (for soft) or puncvec (for hard with puncture)
@@ -69,13 +69,13 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
     %% Pre-compute output bit patterns for all (state, input) pairs
     % output_bits(:, s, u) = column vector of bits for state s-1, input u-1
+    % LSB first: bit b corresponds to b-th generator poly, matching convenc
     output_bits = zeros(nOutputBits, numStates, numInputs);
     for s = 1:numStates
         for u = 1:numInputs
             sym = trellis.outputs(s, u);
             for b = 1:nOutputBits
-                % MSB first: bit nOutputBits corresponds to first generator poly
-                output_bits(b, s, u) = bitget(sym, nOutputBits - b + 1);
+                output_bits(b, s, u) = bitget(sym, b);
             end
         end
     end
