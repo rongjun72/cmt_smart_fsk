@@ -81,9 +81,12 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
     end
 
     %% Viterbi forward pass
-    INF = 1e9;
+    % MATLAB vitdec uses correlation-like metrics (maximize).
+    % For hard decision: branch metric = number of matching bits.
+    % For soft decision: branch metric = sum of matching confidence.
+    NEG_INF = -1e9;
     pathMetric = zeros(numStates, nRxSymbols + 1);
-    pathMetric(:, 1) = INF;
+    pathMetric(:, 1) = NEG_INF;
     pathMetric(1, 1) = 0;  % Start from state 0
 
     % survivor(next_s, t) stores the BEST PREVIOUS STATE (0-indexed) that
@@ -94,7 +97,7 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
         rx_vec = rx_sym(:, t);
 
         for next_s = 1:numStates
-            best_pm = INF;
+            best_pm = NEG_INF;
             best_prev = 0;
 
             for prev_s = 1:numStates
@@ -103,18 +106,19 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
                         expected = output_bits(:, prev_s, u);
 
                         if strcmp(decision_type, 'soft')
-                            % Soft metric: sum of absolute differences
-                            % Scale expected 0/1 to soft range [0, 2^nsdec-1]
+                            % Soft metric: correlation-like (maximize)
+                            % For expected=0: confidence = (2^nsdec-1) - rx_vec
+                            % For expected=1: confidence = rx_vec
                             expected_soft = expected * (2^nsdec - 1);
-                            bm = sum(abs(rx_vec - expected_soft));
+                            bm = sum((2^nsdec - 1) - abs(rx_vec - expected_soft));
                         else
-                            % Hard metric: Hamming distance
-                            bm = sum(rx_vec ~= expected);
+                            % Hard metric: number of matching bits (maximize)
+                            bm = sum(rx_vec == expected);
                         end
 
                         pm = pathMetric(prev_s, t) + bm;
 
-                        if pm < best_pm
+                        if pm > best_pm
                             best_pm = pm;
                             best_prev = prev_s - 1;  % 0-indexed previous state
                         end
