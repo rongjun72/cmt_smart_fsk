@@ -174,6 +174,15 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
     end
 
     %% Remove tail bits only for terminated mode
+    % NOTE: MATLAB vitdec 'term' mode returns ALL decoded symbols (including
+    % tail bits), so we do NOT truncate the output here.
+    % The caller should discard tail bits if needed.
+    % if strcmp(mode, 'term')
+    %     nTailBits = K - 1;
+    %     if length(decoded) > nTailBits
+    %         decoded = decoded(1:end - nTailBits);
+    %     end
+    % end
     if strcmp(mode, 'term')
         nTailBits = K - 1;
         if length(decoded) > nTailBits
