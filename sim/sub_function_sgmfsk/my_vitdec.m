@@ -53,9 +53,14 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
     rx_bits = rx_bits(:);
 
-    %% Depuncturing (insert erasures where bits were punctured out)
+    %% Depuncturing and mask generation
+    puncture_mask = [];
     if ~isempty(puncvec)
         rx_bits = my_depuncture(rx_bits, puncvec, decision_type, nsdec);
+        % Build mask: 1 = kept bit, 0 = punctured (erasure)
+        p = length(puncvec);
+        nPeriods = length(rx_bits) / p;
+        puncture_mask = repmat(puncvec(:), nPeriods, 1);
     end
 
     % Length check: rx_bits should be a multiple of nOutputBits
@@ -66,6 +71,11 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
     % Reshape into symbols (each column is one received symbol vector)
     rx_sym = reshape(rx_bits, nOutputBits, nRxSymbols);
+    if ~isempty(puncture_mask)
+        mask_sym = reshape(puncture_mask, nOutputBits, nRxSymbols);
+    else
+        mask_sym = [];
+    end
 
     %% Pre-compute output bit patterns for all (state, input) pairs
     % MATLAB poly2trellis docs: outputs(s,u) uses MSB = first output bit.
@@ -96,6 +106,11 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
     for t = 1:nRxSymbols
         rx_vec = rx_sym(:, t);
+        if ~isempty(mask_sym)
+            mask_t = mask_sym(:, t);
+        else
+            mask_t = ones(nOutputBits, 1);
+        end
 
         for next_s = 1:numStates
             best_pm = NEG_INF;
@@ -108,13 +123,13 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
 
                         if strcmp(decision_type, 'soft')
                             % Soft metric: correlation-like (maximize)
-                            % For expected=0: confidence = (2^nsdec-1) - rx_vec
-                            % For expected=1: confidence = rx_vec
                             expected_soft = expected * (2^nsdec - 1);
-                            bm = sum((2^nsdec - 1) - abs(rx_vec - expected_soft));
+                            diff = abs(rx_vec - expected_soft);
+                            bm = sum(((2^nsdec - 1) - diff) .* mask_t);
                         else
                             % Hard metric: number of matching bits (maximize)
-                            bm = sum(rx_vec == expected);
+                            match = (rx_vec == expected);
+                            bm = sum(match .* mask_t);
                         end
 
                         pm = pathMetric(prev_s, t) + bm;
