@@ -68,14 +68,15 @@ function decoded = my_vitdec(rx_bits, trellis, tblen, mode, decision_type, varar
     rx_sym = reshape(rx_bits, nOutputBits, nRxSymbols);
 
     %% Pre-compute output bit patterns for all (state, input) pairs
-    % output_bits(:, s, u) = column vector of bits for state s-1, input u-1
-    % LSB first: bit b corresponds to b-th generator poly, matching convenc
+    % MATLAB poly2trellis docs: outputs(s,u) uses MSB = first output bit.
+    % convenc serializes bits in generator-poly order (first poly first).
+    % So output_bits(1,:) must be the first generator-poly output = MSB.
     output_bits = zeros(nOutputBits, numStates, numInputs);
     for s = 1:numStates
         for u = 1:numInputs
             sym = trellis.outputs(s, u);
             for b = 1:nOutputBits
-                output_bits(b, s, u) = bitget(sym, b);
+                output_bits(b, s, u) = bitget(sym, nOutputBits - b + 1);
             end
         end
     end
