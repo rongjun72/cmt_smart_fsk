@@ -39,7 +39,14 @@ for idx = 1:nCodes
 
     % Punctured hard
     puncvec = [1 1 1 0 0 1];  % 3/4 rate
-    enc_p = puncture_bits(enc, puncvec);
+    p = length(puncvec);
+    rem_len = mod(length(enc), p);
+    if rem_len > 0
+        enc_pad = [enc; zeros(p - rem_len, 1)];
+    else
+        enc_pad = enc;
+    end
+    enc_p = puncture_bits(enc_pad, puncvec);
     dec_builtin_p = vitdec(enc_p, trellis, tblen, 'trunc', 'hard', puncvec);
     dec_custom_p  = my_vitdec(enc_p, trellis, tblen, 'trunc', 'hard', puncvec, 0);
     match_p = isequal(dec_builtin_p, dec_custom_p);
